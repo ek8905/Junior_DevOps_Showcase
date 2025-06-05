@@ -6,3 +6,4 @@ crash.log
 terraform.tfvars
 *.box
 .box/
+.terraform.lock.hcl

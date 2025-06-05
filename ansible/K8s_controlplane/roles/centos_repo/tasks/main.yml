@@ -1,0 +1,28 @@
+- name: Find all files and directories in /etc/yum.repos.d/
+  become: true
+  find:
+    paths: /etc/yum.repos.d/
+  register: yum_repo_contents
+
+- name: Remove all files and folders in /etc/yum.repos.d/
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ yum_repo_contents.files }}"
+
+- name: Copy CentOS Stream 9 repo file to system
+  copy:
+    src:  centos-stream.repo 
+    dest: /etc/yum.repos.d/centos9-stream.repo
+    owner: root
+    group: root
+
+
+- name: Clean and rebuild DNF cache
+  become: true
+  command: dnf clean all
+
+- name: Make DNF cache
+  become: true
+  command: dnf makecache

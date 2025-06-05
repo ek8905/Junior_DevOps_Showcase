@@ -1,0 +1,8 @@
+kub_cluster: "kubernetes.local"
+pod_cidr: "10.10.0.0/16"
+cluster_dns: "10.11.0.10"
+kubconf_dir: "/var/lib/kubernetes"
+cert_dir: "/var/lib/kubernetes/pki"
+ca_key: "{{ cert_dir }}/ca.key"
+ca_cert: "{{ cert_dir }}/ca.crt"
+master_ip: "192.168.0.102"

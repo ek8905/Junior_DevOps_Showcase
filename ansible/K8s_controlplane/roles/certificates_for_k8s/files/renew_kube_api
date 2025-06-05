@@ -1,0 +1,138 @@
+#!/bin/bash
+
+s#!/bin/bash
+
+set -euo pipefail
+
+CERT_DIR="/var/lib/kubernetes/pki"
+CA_KEY="${CERT_DIR}/ca.key"
+CA_CERT="${CERT_DIR}/ca.crt"
+TMP_DIR="/tmp"
+
+mkdir -p "$CERT_DIR"
+
+# Create CNF files
+create_cnf_files() {
+    cat > ${TMP_DIR}/kube-api-server_openssl.cnf <<EOF
+[ req ]
+prompt = no
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[ req_distinguished_name ]
+CN = kube-apiserver
+O = Kubernetes
+
+[ v3_req ]
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = k8smaster
+DNS.2 = kubernetes.default
+DNS.3 = kubernetes.default.svc
+DNS.4 = kubernetes.default.svc.project
+DNS.5 = kubernetes.default.svc.project.local
+IP.1 = 192.168.0.102
+IP.2 = 127.0.0.1
+ip.3 = 10.11.0.1
+EOF
+
+    cat > ${TMP_DIR}/kube-api-etcd-client_openssl.cnf <<EOF
+[ req ]
+prompt = no
+distinguished_name = req_distinguished_name
+
+[ req_distinguished_name ]
+CN = kube-apiserver-etcd-client
+O = Kubernetes
+EOF
+
+    cat > ${TMP_DIR}/kube-api-client_openssl.cnf <<EOF
+[ req ]
+prompt = no
+distinguished_name = req_distinguished_name
+
+[ req_distinguished_name ]
+CN = kube-apiserver-client
+O = system:masters
+EOF
+}
+
+# Regenerate a certificate
+regenerate_cert() {
+    local name=$1
+    local cnf_file=$2
+    local key_file="${CERT_DIR}/${name}.key"
+    local csr_file="${TMP_DIR}/${name}.csr"
+    local crt_file="${CERT_DIR}/${name}.crt"
+
+    if [[ ! -f "$cnf_file" ]]; then
+        echo "[!] Error: CNF file $cnf_file not found. Aborting."
+        exit 1
+    fi
+
+    echo "[*] Regenerating certificate: ${name}"
+    openssl genrsa -out "${key_file}" 4096
+    openssl req -new -key "${key_file}" -out "${csr_file}" -config "${cnf_file}"
+
+    if [[ "$name" == "kube-api-server" ]]; then
+        openssl x509 -req -in "${csr_file}" \
+            -CA "$CA_CERT" -CAkey "$CA_KEY" -CAcreateserial \
+            -out "${crt_file}" -days 365 -sha256 \
+            -extensions v3_req -extfile "${cnf_file}"
+    else
+        openssl x509 -req -in "${csr_file}" \
+            -CA "$CA_CERT" -CAkey "$CA_KEY" -CAcreateserial \
+            -out "${crt_file}" -days 365 -sha256
+    fi
+
+    echo "[✓] ${name} certificate regenerated."
+}
+
+# Restart kube-apiserver if any cert was renewed
+restart_kube_apiserver() {
+    echo "[*] Restarting kube-apiserver..."
+    systemctl daemon-reexec
+    systemctl restart kube-apiserver
+    echo "[✓] kube-apiserver restarted."
+}
+
+# Interactive menu
+show_menu() {
+    echo "Select certificate(s) to regenerate:"
+    echo "1) kube-api-server"
+    echo "2) kube-api-etcd-client"
+    echo "3) kube-api-client"
+    echo "4) All of the above"
+    echo "0) Exit"
+    echo -n "Choice: "
+}
+
+# Main flow
+main() {
+    create_cnf_files
+
+    show_menu
+    read -r choice
+
+    declare -a choices=()
+    case "$choice" in
+        1) choices=("kube-api-server") ;;
+        2) choices=("kube-api-etcd-client") ;;
+        3) choices=("kube-api-client") ;;
+        4) choices=("kube-api-server" "kube-api-etcd-client" "kube-api-client") ;;
+        0) echo "Exiting." && exit 0 ;;
+        *) echo "Invalid choice." && exit 1 ;;
+    esac
+
+    for cert in "${choices[@]}"; do
+        cnf_path="${TMP_DIR}/${cert}_openssl.cnf"
+        regenerate_cert "$cert" "$cnf_path"
+    done
+
+    restart_kube_apiserver
+}
+
+main

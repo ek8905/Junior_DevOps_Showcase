@@ -1,0 +1,23 @@
+[ req ]
+default_bits       = 4096
+prompt             = no
+default_md         = sha256
+distinguished_name = dn
+req_extensions     = v3_req
+
+[ dn ]
+CN = kube-apiserver
+O = Kubernetes
+
+[ v3_req ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = {{ hostname }}
+DNS.2 = kubernetes
+DNS.3 = kubernetes.default
+DNS.4 = kubernetes.default.svc
+DNS.5 = kubernetes.default.svc.{{ kub_cluster }}
+IP.1 = 127.0.0.1
+IP.2 = {{ master_ip }}
+IP.3 = 10.11.0.1

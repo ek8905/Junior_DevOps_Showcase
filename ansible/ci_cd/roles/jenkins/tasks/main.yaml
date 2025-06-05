@@ -1,0 +1,101 @@
+- name: Install Java (Jenkins dependency)
+  become: yes
+  ansible.builtin.package:
+    name: java-21-openjdk
+    state: present
+
+- name: Add Jenkins repo
+  become: yes
+  ansible.builtin.get_url:
+    url: "{{ install_url }}"
+    dest: /etc/yum.repos.d/jenkins.repo
+
+- name: Import Jenkins GPG key
+  become: yes
+  ansible.builtin.rpm_key:
+    state: present
+    key: "{{ jenkins_GPG_key }}"
+
+- name: Install Jenkins
+  become: yes
+  ansible.builtin.dnf:
+    name: jenkins
+    state: present
+
+- name: Ensure firewalld is running and enabled
+  become: yes
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Allow access to Jenkins custom port in firewalld
+  become: yes
+  ansible.posix.firewalld:
+    zone: public
+    permanent: yes
+    immediate: yes
+    state: enabled
+    rich_rule: 'rule family="ipv4" source address="192.168.0.0/24" port protocol="tcp" port="{{ jenkins_port }}" accept'
+
+- name: Install semanage dependency
+  become: yes
+  ansible.builtin.dnf:
+    name: policycoreutils-python-utils
+    state: present
+
+- name: Allow custom Jenkins port in SELinux
+  become: yes
+  ansible.builtin.command: >
+    semanage port -a -t jenkins_port_t -p tcp {{ jenkins_port }}
+  register: semanage_result
+  failed_when: semanage_result.rc not in [0,1]
+  changed_when: semanage_result.rc == 0
+
+- name: Create systemd override directory for Jenkins
+  become: yes
+  file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    mode: '0755'
+
+- name: Override Jenkins port in systemd service
+  become: yes
+  copy:
+    dest: /etc/systemd/system/jenkins.service.d/override.conf
+    content: |
+      [Service]
+      Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk"
+      Environment="JENKINS_PORT={{ jenkins_port }}"
+  notify:
+    - Reload systemd
+    - Restart Jenkins
+
+- name: Enable and start Jenkins
+  become: yes
+  ansible.builtin.systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Test Jenkins API access
+  uri:
+    url: "http://192.168.0.101:8081/api/json"
+    method: GET
+    user: "{{ url_username }}"
+    password: "{{ url_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: result
+
+- name: Install Jenkins plugins
+  community.general.jenkins_plugin:
+    name: "{{ item }}"
+    state: present
+    url: "{{ jenkins_url }}"
+    url_username: "{{ url_username }}"
+    url_password: "{{ url_password }}"
+    with_dependencies: yes
+  loop: "{{ jenkins_plugins }}"
+  notify:
+    - Restart Jenkins  

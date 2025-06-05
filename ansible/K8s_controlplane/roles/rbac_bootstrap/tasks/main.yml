@@ -1,0 +1,92 @@
+# Generate ClusterRoleBinding for CSR bootstrapping
+- name: Generate ClusterRoleBinding for CSR bootstrapping
+  ansible.builtin.template:
+    src: clusterrolebinding_csr_bootstrapping.j2
+    dest: /tmp/clusterrolebinding_csr_bootstrapping.yaml
+    mode: '0644'
+
+- name: Generate expiration date 7 days from now
+  shell: date -u -d '+7 days' +'%Y-%m-%dT%H:%M:%SZ'
+  register: expiration_date
+
+- name: Generate bootstrap token secret manifest
+  ansible.builtin.template:
+    src: secret_bootstrap_token.j2
+    dest: /tmp/bootstrap_token_secret.yaml
+    mode: '0644'
+  vars:
+    expiration: "{{ expiration_date.stdout }}"
+
+- name: Apply bootstrap token secret manifest
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/bootstrap_token_secret.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: bootstrap_secret_apply
+  changed_when: "'configured' in bootstrap_secret_apply.stdout or 'created' in bootstrap_secret_apply.stdout"
+
+
+- name: Generate ClusterRoleBinding for CSR bootstrapping
+  ansible.builtin.template:
+    src:  clusterrolebinding_csr_bootstrapping.j2
+    dest: /tmp/clusterrolebinding_csr_bootstrapping.yaml
+    mode: '0644'
+
+- name: Apply ClusterRoleBinding for CSR bootstrapping
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/clusterrolebinding_csr_bootstrapping.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: csr_bootstrap_apply
+  changed_when: "'configured' in csr_bootstrap_apply.stdout or 'created' in csr_bootstrap_apply.stdout"
+
+- name: Generate ClusterRoleBinding for bootstrapping approve
+  ansible.builtin.template:
+    src:  clusterrolebinding_auto_approve.j2 
+    dest: /tmp/clusterrolebinding_auto_approve.yaml
+    mode: '0644'
+
+- name: Apply ClusterRoleBinding for CSR bootstrapping
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/clusterrolebinding_auto_approve.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: csr_bootstrap_approve
+  changed_when: "'configured' in csr_bootstrap_approve.stdout or 'created' in csr_bootstrap_approve.stdout"
+
+- name: Generate ClusterRoleBinding for CSR bootstrapping
+  ansible.builtin.template:
+    src:  clusterrolebinding_auto_renewal.j2
+    dest: /tmp/clusterrolebinding_auto_renewal.yaml
+    mode: '0644'
+
+- name: Apply ClusterRoleBinding for bootstraping auto renewal
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/clusterrolebinding_auto_renewal.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: csr_bootstrap_renew
+  changed_when: "'configured' in csr_bootstrap_renew.stdout or 'created' in csr_bootstrap_renew.stdout"
+
+
+
+
+
+# ClusterRole: kube-apiserver to kubelet
+- name: Generate ClusterRole kube-apiserver -> kubelet
+  ansible.builtin.template:
+    src:  clusterrole_kubeapiserver_to_kubelet.j2 
+    dest: /tmp/clusterrole_kubeapiserver_to_kubelet.yaml
+    mode: '0644'
+
+- name: Apply ClusterRole kube-apiserver -> kubelet
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/clusterrole_kubeapiserver_to_kubelet.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: api_to_kubelet_cr_apply
+  changed_when: "'configured' in api_to_kubelet_cr_apply.stdout or 'created' in api_to_kubelet_cr_apply.stdout"
+
+# ClusterRoleBinding: kube-apiserver -> kubelet
+- name: Generate ClusterRoleBinding kube-apiserver -> kubelet
+  ansible.builtin.template:
+    src: clusterrolebinding_kubeapiserver_to_kubelet.j2
+    dest: /tmp/clusterrolebinding_kubeapiserver_to_kubelet.yaml
+    mode: '0644'
+
+- name: Apply ClusterRoleBinding kube-apiserver -> kubelet
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/clusterrolebinding_kubeapiserver_to_kubelet.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: api_to_kubelet_crb_apply
+  changed_when: "'configured' in api_to_kubelet_crb_apply.stdout or 'created' in api_to_kubelet_crb_apply.stdout"
+

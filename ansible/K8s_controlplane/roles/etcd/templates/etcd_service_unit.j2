@@ -1,0 +1,31 @@
+[Unit]
+Description=etcd
+Documentation=https://github.com/coreos
+
+[Service]
+ExecStart=/usr/local/bin/etcd \
+  --name {{ etcd_name }} \
+  --cert-file=/etc/etcd/etcd-server.crt \
+  --peer-cert-file=/etc/etcd/etcd-server.crt \
+  --peer-key-file=/etc/etcd/etcd-server.key \
+  --peer-trusted-ca-file=/etc/etcd/ca.crt \
+  --peer-client-cert-auth \
+  --key-file=/etc/etcd/etcd-server.key \
+  --trusted-ca-file=/etc/etcd/ca.crt \
+  --client-cert-auth \
+  --listen-client-urls "https://{{ master_ip }}:2379,https://127.0.0.1:2379" \
+  --advertise-client-urls "https://{{ master_ip }}:2379" \
+  --listen-peer-urls "https://{{ master_ip }}:2380" \
+  --initial-advertise-peer-urls "https://{{ master_ip }}:2380" \
+  --initial-cluster-token etcd-cluster-0 \
+  --initial-cluster {{ etcd_name }}="https://{{ master_ip }}:2380" \
+  --initial-cluster-state new \
+  --data-dir=/var/lib/etcd
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+
+

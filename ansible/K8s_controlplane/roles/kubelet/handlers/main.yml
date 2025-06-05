@@ -1,0 +1,14 @@
+- name: Stop kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: stopped
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Start kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: started
+

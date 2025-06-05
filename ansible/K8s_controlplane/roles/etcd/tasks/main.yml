@@ -1,0 +1,111 @@
+- name: Download SHA256SUMS file for etcd
+  ansible.builtin.get_url:
+    url: "{{ SHA256_LINK }}"
+    dest: "/tmp/etcd-SHA256SUMS"
+    mode: '0644'
+    validate_certs: yes
+
+- name: Extract etcd tarball checksum from SHA256SUMS
+  ansible.builtin.shell: >
+    grep {{ etcd_tarball }} /tmp/etcd-SHA256SUMS | awk '{ print $1 }'
+  register: etcd_checksum_output
+  changed_when: false
+
+- name: Set etcd checksum fact
+  ansible.builtin.set_fact:
+    etcd_checksum: "sha256:{{ etcd_checksum_output.stdout }}"
+
+- name: Download etcd release tarball with verified checksum
+  ansible.builtin.get_url:
+    url: "{{ ETCD_LINK }}"
+    checksum: "{{ etcd_checksum }}"
+    dest: "/tmp/{{ etcd_tarball }}"
+    mode: '0644'
+    validate_certs: yes
+
+- name: Extract etcd tarball
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ etcd_tarball }}"
+    dest: "/tmp"
+    remote_src: yes
+
+- name: Move etcd and etcdctl binaries to /usr/local/bin
+  ansible.builtin.command:
+    cmd: mv /tmp/etcd-{{ ETCD_VERSION }}-linux-{{ ARCH }}/{{ item }} /usr/local/bin/{{ item }}
+    creates: /usr/local/bin/{{ item }}
+  loop:
+    - etcd
+    - etcdctl
+
+- name: Ensure etcd binaries are executable
+  ansible.builtin.file:
+    path: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - etcd
+    - etcdctl
+
+- name: Ensure policycoreutils-python-utils is installed 
+  ansible.builtin.package:
+    name: policycoreutils-python-utils
+    state: present
+
+- name: Add SELinux fcontext rule for /usr/local/bin/etcd
+  ansible.builtin.command:
+    cmd: semanage fcontext -a -t bin_t "/usr/local/bin/etcd"
+  args:
+    creates: /etc/selinux/targeted/contexts/files/file_contexts.local
+
+- name: Apply SELinux context to /usr/local/bin/etcd
+  ansible.builtin.command:
+    cmd: restorecon -v /usr/local/bin/etcd 
+
+- name: Clean up extracted directory
+  ansible.builtin.file:
+    path: "/tmp/etcd-{{ ETCD_VERSION }}-linux-{{ ARCH }}"
+    state: absent
+
+- name: Create etcd systemd service file from template
+  ansible.builtin.template:
+    src: etcd_service_unit.j2
+    dest: /etc/systemd/system/etcd.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart etcd
+
+- name: Enable and start etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    enabled: yes
+    state: started
+
+- name: Wait for etcd service to become healthy
+  ansible.builtin.command: >
+   /usr/local/bin/etcdctl member list
+    --endpoints=https://127.0.0.1:2379
+    --cacert=/etc/etcd/ca.crt
+    --cert=/etc/etcd/etcd-server.crt
+    --key=/etc/etcd/etcd-server.key
+  register: etcd_member_list
+  retries: 10
+  delay: 6
+  until: etcd_member_list.rc == 0 and "'unhealthy' not in etcd_member_list.stdout"
+  failed_when: false
+  changed_when: false
+  environment:
+    ETCDCTL_API: "{{ ETCDCTL_VERSION }}"
+
+
+- name: Change etcd initial-cluster-state from 'new' to 'existing'
+  ansible.builtin.replace:
+    path: /etc/systemd/system/etcd.service
+    regexp: '--initial-cluster-state\s+new'
+    replace: '--initial-cluster-state existing'
+  notify:
+    - Reload systemd
+    - Restart etcd

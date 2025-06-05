@@ -1,0 +1,365 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calico-system
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: felixconfigurations.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: FelixConfiguration
+    listKind: FelixConfigurationList
+    plural: felixconfigurations
+    singular: felixconfiguration
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: bgppeers.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: BGPPeer
+    listKind: BGPPeerList
+    plural: bgppeers
+    singular: bgppeer
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+---
+# (Add all CRDs from the official manifest https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/crds.yaml)
+#   kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/crds.yaml
+
+---
+# Calico Installation resource
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+  namespace: calico-system
+spec:
+  variant: Calico
+  calicoNetwork:
+    ipPools:
+      - cidr: {{ pod_cidr }}
+        encapsulation: VXLAN
+        natOutgoing: Enabled
+        nodeSelector: all()
+
+---
+# Calico Typha Deployment (optional but recommended for scaling)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calico-typha
+  namespace: calico-system
+  labels:
+    k8s-app: calico-typha
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      k8s-app: calico-typha
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-typha
+    spec:
+      serviceAccountName: calico-typha
+      containers:
+        - name: calico-typha
+          image: calico/typha:{{ calico_version }}
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          env:
+            - name: TYPHA_LOGSEVERITYSCREEN
+              value: "info"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+
+---
+# ServiceAccount for Typha
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: calico-typha
+  namespace: calico-system
+
+---
+# ClusterRole for Typha
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: calico-typha
+rules:
+  - apiGroups: [""]
+    resources:
+      - endpoints
+      - pods
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - projectcalico.org
+    resources:
+      - bgppeers
+      - felixconfigurations
+      - ippools
+      - hostendpoints
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+# ClusterRoleBinding for Typha
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: calico-typha
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: calico-typha
+subjects:
+  - kind: ServiceAccount
+    name: calico-typha
+    namespace: calico-system
+
+---
+# Calico Node DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: calico-node
+  namespace: calico-system
+  labels:
+    k8s-app: calico-node
+spec:
+  selector:
+    matchLabels:
+      k8s-app: calico-node
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-node
+    spec:
+      hostNetwork: true
+      serviceAccountName: calico-node
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: calico-node
+          image: calico/node:{{ calico_version }}
+          env:
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            - name: CALICO_NETWORKING_BACKEND
+              value: "bird"
+            - name: CLUSTER_TYPE
+              value: "k8s,bgp"
+            - name: IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          volumeMounts:
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - mountPath: /var/run/calico
+              name: var-run-calico
+            - mountPath: /var/lib/calico
+              name: var-lib-calico
+      volumes:
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: var-run-calico
+          hostPath:
+            path: /var/run/calico
+        - name: var-lib-calico
+          hostPath:
+            path: /var/lib/calico
+
+---
+# Service Account for calico-node
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: calico-node
+  namespace: calico-system
+
+---
+# ClusterRole for calico-node
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: calico-node
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - nodes
+      - namespaces
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+# ClusterRoleBinding for calico-node
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: calico-node
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: calico-node
+subjects:
+  - kind: ServiceAccount
+    name: calico-node
+    namespace: calico-system
+
+---
+# ClusterRole for calico-kube-controllers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: calico-kube-controllers
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - nodes
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+      - list
+
+---
+# ClusterRoleBinding for calico-kube-controllers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: calico-kube-controllers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: calico-kube-controllers
+subjects:
+  - kind: ServiceAccount
+    name: calico-kube-controllers
+    namespace: calico-system
+
+---
+# Service Account for calico-kube-controllers
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: calico-kube-controllers
+  namespace: calico-system
+
+---
+# Deployment for calico-kube-controllers
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calico-kube-controllers
+  namespace: calico-system
+  labels:
+    k8s-app: calico-kube-controllers
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: calico-kube-controllers
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-kube-controllers
+    spec:
+      serviceAccountName: calico-kube-controllers
+      containers:
+        - name: calico-kube-controllers
+          image: calico/kube-controllers:{{ calico_version }}
+          env:
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+ 

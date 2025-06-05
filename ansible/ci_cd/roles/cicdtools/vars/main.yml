@@ -1,0 +1,4 @@
+kubectl_version: "v1.33.1"
+helm_version: "v3.17.3"
+docker_base_url: "https://download.docker.com/linux/centos/docker-ce.repo"
+docker_gpg_key_url: "https://download.docker.com/linux/centos/gpg"

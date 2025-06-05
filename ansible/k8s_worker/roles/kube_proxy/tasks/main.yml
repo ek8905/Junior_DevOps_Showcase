@@ -1,0 +1,63 @@
+- name: Ensure kube-proxy config directory exists
+  ansible.builtin.file:
+    path: /var/lib/kube-proxy
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: copy Kube-proxy certificate
+  ansible.builtin.copy:
+    src: kube-proxy-worker.crt
+    dest: "{{ cert_dir }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: copy Kube-proxy key
+  ansible.builtin.copy:
+    src: kube-proxy-worker.key
+    dest: "{{ cert_dir }}"
+    owner: root
+    group: root
+    mode: '0600'
+
+
+
+- name: Create kube-proxy kubeconfig from template
+  ansible.builtin.template:
+    src: kubeconfig_kube_proxy.j2
+    dest: /var/lib/kube-proxy/kube_proxy.kubeconfig
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart kube-proxy service
+
+
+- name: Create kube-proxy systemd service file
+  ansible.builtin.template:
+    src: kube_proxy_service_unit.j2
+    dest: /etc/systemd/system/kube-proxy.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd daemon
+    - Restart kube-proxy service
+
+- name: Render kube-proxy config file from template
+  ansible.builtin.template:
+    src: kube_proxy_config_yaml.j2
+    dest: /var/lib/kube-proxy/kube_proxy_config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Restart kube-proxy service
+
+- name: Start and enable kube-proxy service
+  ansible.builtin.systemd:
+    name: kube-proxy
+    state: started
+    enabled: yes
+

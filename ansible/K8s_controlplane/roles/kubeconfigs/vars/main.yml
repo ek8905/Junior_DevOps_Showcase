@@ -1,0 +1,4 @@
+cert_dir: "/var/lib/kubernetes/pki"
+master_ip: "192.168.0.102"
+kub_cluster: "kubernetes.local"
+hostname: "k8smaster"

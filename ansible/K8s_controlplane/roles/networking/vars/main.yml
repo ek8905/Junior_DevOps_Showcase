@@ -1,0 +1,6 @@
+coredns_image: "coredns:v1.12.1"
+calico_version: "v3.30.0"
+kub_cluster: "kubernetes.local"
+pod_cidr: "10.10.0.0/16"
+cluster_dns: "10.11.0.10"
+kubconf_dir: "/var/lib/kubernetes"

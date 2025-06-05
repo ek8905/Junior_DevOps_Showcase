@@ -1,0 +1,84 @@
+- name: Ensure kube-proxy config directory exists
+  ansible.builtin.file:
+    path: /var/lib/kube-proxy
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create kube-proxy systemd service file
+  ansible.builtin.template:
+    src: kube_proxy_service_unit.j2
+    dest: /etc/systemd/system/kube-proxy.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd daemon
+    - Restart kube-proxy service
+
+- name: Render kube-proxy config file from template
+  ansible.builtin.template:
+    src: kube_proxy_config_yaml.j2
+    dest: /var/lib/kube-proxy/kube_proxy_config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Restart kube-proxy service
+
+- name: Start and enable kube-proxy service
+  ansible.builtin.systemd:
+    name: kube-proxy
+    state: started
+    enabled: yes
+
+# Install and config Calico
+
+- name: Ensure calico-system namespace exists
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl create namespace calico-system --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: calico_ns_result
+  failed_when: false  # Don't fail if it already exists
+  changed_when: "'created' in calico_ns_result.stdout"
+
+
+- name: create Calico manifest
+  ansible.builtin.template:
+    src: calico_full.yaml.j2
+    dest: /tmp/calico.yaml
+    mode: '0644'
+  notify:
+    - Delete Calico resources
+
+
+- name: Apply Calico manifest
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl  apply -f /tmp/calico.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  register: calico_apply_result
+  changed_when: "'configured' in calico_apply_result.stdout or 'created' in calico_apply_result.stdout" 
+
+# Install and config CoreDNS
+
+- name: Generate CoreDNS manifest
+  ansible.builtin.template:
+    src: coredns_yaml.j2
+    dest: /tmp/coredns.yaml
+    mode: '0644'
+  become: yes
+  notify: 
+    - Delete CoreDNS resources 
+ 
+- name: Apply CoreDNS resources
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl apply -f /tmp/coredns.yaml --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+
+- name: Wait for Calico pods to be ready
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl wait --namespace kube-system --for=condition=ready pod -l k8s-app=calico-node --timeout=120s --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+  when: calico_apply_result.changed
+
+- name: Wait for CoreDNS pods to be ready
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl wait --namespace kube-system --for=condition=ready pod -l k8s-app=kube-dns --timeout=60s --kubeconfig "/var/lib/kubernetes/admin.kubeconfig"
+

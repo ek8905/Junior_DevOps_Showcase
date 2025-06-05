@@ -1,0 +1,3 @@
+cert_dir: "/var/lib/kubernetes/pki"
+ca_key: "{{ cert_dir }}/ca.key"
+ca_cert: "{{ cert_dir }}/ca.crt"

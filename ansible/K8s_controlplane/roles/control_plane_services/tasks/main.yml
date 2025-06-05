@@ -1,0 +1,76 @@
+- name: Create kube-apiserver systemd service file
+  ansible.builtin.template:
+    src: kube_apiserver_service_unit.j2
+    dest: /etc/systemd/system/kube-apiserver.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd daemon
+    - Restart kube-apiserver service 
+
+
+- name: Enable and start kube-apiserver service
+  ansible.builtin.systemd:
+    name: kube-apiserver
+    enabled: yes
+    state: started
+
+- name: Generate EncryptionConfig for encryption at rest
+  ansible.builtin.template:
+    src: encryption_at_rest.j2
+    dest: /var/lib/kubernetes/encryption_config.yaml
+    owner: root
+    group: root
+    mode: '0600'
+  notify:
+    - Reload systemd daemon
+    - Restart kube-apiserver service 
+
+- name: Create kube-controller-manager systemd service file
+  ansible.builtin.template:
+    src: kube_controller_manager_service_unit.j2
+    dest: /etc/systemd/system/kube-controller-manager.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 
+    - Reload systemd daemon
+    - Restart kube-controller-manager service 
+
+- name: Enable and start kube-controller-manager service
+  ansible.builtin.systemd:
+    name: kube-controller-manager
+    enabled: yes
+    state: started
+
+# --- kube-scheduler ---
+- name: Create kube-scheduler systemd service file
+  ansible.builtin.template:
+    src: kube_scheduler_service_unit.j2
+    dest: /etc/systemd/system/kube-scheduler.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 
+    - Reload systemd daemon
+    - Restart kube-scheduler service
+
+- name: Enable and start kube-scheduler service
+  ansible.builtin.systemd:
+    name: kube-scheduler
+    enabled: yes
+    state: started
+
+- name: Wait for kube-apiserver to be ready
+  uri:
+    url: https://127.0.0.1:6443/healthz
+    method: GET
+    status_code: 200
+    validate_certs: no
+  register: result
+  until: result.status == 200
+  retries: 10
+  delay: 6
+
+

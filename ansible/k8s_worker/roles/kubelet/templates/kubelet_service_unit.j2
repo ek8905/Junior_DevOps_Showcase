@@ -1,0 +1,19 @@
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/kubelet \
+  --config=/var/lib/kubelet/kubelet_config.yaml \
+  --bootstrap-kubeconfig="/var/lib/kubelet/bootstrap-kubeconfig" \
+  --kubeconfig=/var/lib/kubelet/kubeconfig \
+  --cert-dir="{{ cert_dir }}" \
+  --node-ip="{{ worker_ip }}" \
+  --v=2
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

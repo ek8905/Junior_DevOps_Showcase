@@ -1,0 +1,24 @@
+- name: Ensure certificate directory exists
+  ansible.builtin.file:
+    path: "{{ cert_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Copy Kubernetes CA certificate
+  ansible.builtin.copy:
+    src: ca.crt
+    dest: "{{ ca_cert }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Copy Kubernetes CA private key
+  ansible.builtin.copy:
+    src: ca.key
+    dest: "{{ ca_key }}"
+    owner: root
+    group: root
+    mode: '0600'
+

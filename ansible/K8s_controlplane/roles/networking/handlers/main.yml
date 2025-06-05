@@ -1,0 +1,16 @@
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Restart kube-proxy service
+  ansible.builtin.systemd:
+    name: kube-proxy
+    state: restarted
+
+- name: Delete CoreDNS resources
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl delete -f /tmp/coredns.yaml --ignore-not-found --kubeconfig "{{ kubconf_dir }}/admin.kubeconfig"
+
+- name: Delete Calico resources
+  ansible.builtin.command:
+    cmd: /usr/local/bin/kubectl delete -f /tmp/calico.yaml --ignore-not-found --kubeconfig "{{ kubconf_dir }}/admin.kubeconfig"

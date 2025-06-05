@@ -1,0 +1,33 @@
+- name: Create namespace for Argo CD
+  kubernetes.core.k8s:
+    state: present
+    kind: Namespace
+    name: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+  delegate_to: localhost
+
+- name: Install Argo CD using upstream manifest
+  kubernetes.core.k8s:
+    state: present
+    namespace: argocd
+    src: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    kubeconfig: "{{ kubeconfig_path }}"
+  delegate_to: localhost
+
+- name: Patch Argo CD server service to NodePort 
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: argocd-server
+        namespace: argocd
+      spec:
+        type: NodePort
+        ports:
+         -  name: http
+            port: 8080
+            nodePort: 30808
+  delegate_to: localhost  

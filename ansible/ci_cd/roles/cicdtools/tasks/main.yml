@@ -1,0 +1,107 @@
+---
+- name: Install yum-utils (needed for managing repos and utilities)
+  become: yes
+  dnf:
+    name: yum-utils
+    state: present
+
+- name: Add Docker CE repository
+  become: yes
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
+- name: Install Docker engine packages
+  become: yes
+  dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: present
+
+- name: Enable and start Docker service
+  become: yes
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: install packages  
+  become: yes
+  package:
+    name:
+      - git
+      - python3
+      - nodejs
+      - jq
+    state: present
+
+- name: Download kubectl binary
+  become: yes
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+    owner: root
+    group: root
+
+
+- name: Create symlink from /usr/local/bin/kubectl to /usr/bin/kubectl
+  ansible.builtin.file:
+    src: /usr/local/bin/kubectl
+    dest: /usr/bin/kubectl
+    state: link
+    force: yes
+
+
+- name: Download Helm archive
+  get_url:
+    url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    dest: /tmp/helm.tar.gz
+    mode: '0644'
+
+- name: Extract Helm binary
+  unarchive:
+    src: /tmp/helm.tar.gz
+    dest: /tmp/
+    remote_src: yes
+
+- name: Move Helm to /usr/local/bin
+  become: yes
+  command: mv /tmp/linux-amd64/helm /usr/local/bin/helm 
+  args:
+   creates: /usr/local/bin/helm
+
+- name: Create symlink from /usr/local/bin/helm to /usr/bin/helm
+  ansible.builtin.file:
+    src: /usr/local/bin/helm
+    dest: /usr/bin/helm
+    state: link
+    force: yes
+
+- name: Show installed versions
+  block:
+    - name: Get Git version
+      command: git --version
+      register: git_version
+    - name: Get Docker version
+      command: docker --version
+      register: docker_version
+    - name: Get Node.js version
+      command: node --version
+      register: node_version
+    - name: Get Python3 version
+      command: python3 --version
+      register: python_version
+    - name: Get Helm version
+      command: helm version 
+      register: helm_version
+    - name: Show all versions
+      debug:
+        msg: |
+          Git: {{ git_version.stdout }}
+          Docker: {{ docker_version.stdout }}
+          Node.js: {{ node_version.stdout }}
+          Python3: {{ python_version.stdout }}
+          Helm: {{ helm_version.stdout }}

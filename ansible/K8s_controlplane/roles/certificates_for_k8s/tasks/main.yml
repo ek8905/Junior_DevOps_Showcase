@@ -1,0 +1,612 @@
+---
+- name: Create necessary directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /etc/etcd
+    - /var/lib/etcd
+    - "{{ cert_dir }}"
+    - /var/lib/kube-proxy
+    - /var/lib/kubelet
+    - /var/run/kubernetes
+    - /etc/containerd
+
+# --- CA ---
+- name: Copy OpenSSL config file for CA cert
+  ansible.builtin.template:
+    src: ca_openssl.cnf.j2
+    dest: /tmp/ca_openssl.cnf
+    mode: '0644'
+
+- name: Generate CA private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ ca_key }} 4096
+  args:
+    creates: "{{ ca_key }}"
+
+- name: Generate self-signed CA certificate with extensions
+  ansible.builtin.command: >
+    openssl req -x509 -new -nodes
+    -key {{ ca_key }}
+    -sha256
+    -days 3650
+    -out {{ ca_cert }}
+    -config /tmp/ca_openssl.cnf
+  args:
+    creates: "{{ ca_cert }}"
+
+- name: Create symlink for CA certificate in /etc/etcd
+  ansible.builtin.file:
+    src: "{{ ca_cert }}"
+    dest: /etc/etcd/ca.crt
+    state: link
+    force: true
+
+# --- Admin ---
+- name: Copy OpenSSL config file for admin cert
+  ansible.builtin.template:
+    src: admin_openssl.cnf.j2
+    dest: /tmp/admin_openssl.cnf
+    mode: '0644'
+
+- name: Generate admin private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/admin.key 4096
+  args:
+    creates: "{{ cert_dir }}/admin.key"
+
+- name: Generate admin CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/admin.key
+    -out /tmp/admin.csr
+    -config /tmp/admin_openssl.cnf
+  args:
+    creates: /tmp/admin.csr
+
+- name: Generate admin certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/admin.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/admin.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/admin.crt"
+
+#---------etcd certs--------------------------
+
+- name: Copy OpenSSL config for etcd server
+  ansible.builtin.template:
+    src: etcd-server-openssl.cnf.j2
+    dest: /tmp/etcd-server-openssl.cnf
+    mode: '0644'
+
+- name: Generate etcd server private key
+  command: openssl genrsa -out /etc/etcd/etcd-server.key 4096
+  args:
+    creates: /etc/etcd/etcd-server.key
+
+- name: Generate etcd server CSR
+  ansible.builtin.command: >
+    openssl req -new -key /etc/etcd/etcd-server.key
+    -subj "/CN=etcd-server/O=Kubernetes"
+    -out /etc/etcd/etcd-server.csr
+    -config /tmp/etcd-server-openssl.cnf
+  args:
+    creates: "/etc/etcd/etcd-server.csr"
+
+- name: Sign etcd server certificate with CA
+  command: >
+    openssl x509 -req
+    -in /etc/etcd//etcd-server.csr
+    -CA {{ ca_cert }} -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out /etc/etcd/etcd-server.crt
+    -extensions v3_req
+    -extfile /tmp/etcd-server-openssl.cnf
+    -days 1000
+  args:
+    creates: /etc/etcd/etcd-server.crt
+
+
+# ------------ kube-apiserver -------------------------------------------------
+- name: Copy OpenSSL config for kube-apiserver cert
+  ansible.builtin.template:
+    src: kube-apiserver_openssl.cnf.j2
+    dest: /tmp/kube-apiserver_openssl.cnf
+    mode: '0644'
+
+
+- name: Generate kube-apiserver private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-api-server.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-api-server.key"
+
+
+- name: Generate kube-apiserver CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-api-server.key
+    -out /tmp/kube-api-server.csr
+    -config /tmp/kube-apiserver_openssl.cnf
+  args:
+    creates: /tmp/kube-api-server.csr
+
+
+- name: Generate kube-apiserver certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-api-server.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-api-server.crt
+    -days 3650
+    -sha256
+    -extensions v3_req
+    -extfile /tmp/kube-apiserver_openssl.cnf
+  args:
+    creates: "{{ cert_dir }}/kube-api-server.crt"
+
+
+- name: Copy OpenSSL config for kube-api-etcd-client cert
+  ansible.builtin.template:
+    src: kube-api-etcd-client_openssl.cnf.j2
+    dest: /tmp/kube-api-etcd-client_openssl.cnf
+    mode: '0644'
+
+- name: Generate kube-api-etcd-client private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-api-etcd-client.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-api-etcd-client.key"
+
+
+- name: Generate kube-api-etcd-client CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-api-etcd-client.key
+    -out /tmp/kube-api-etcd-client.csr
+    -config /tmp/kube-api-etcd-client_openssl.cnf
+  args:
+    creates: /tmp/kube-api-etcd-client.csr
+
+
+- name: Generate kube-api-etcd-client certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-api-etcd-client.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-api-etcd-client.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/kube-api-etcd-client.crt"
+
+- name: Copy OpenSSL config for kube-api-client cert
+  ansible.builtin.template:
+    src: kube-api-client_openssl.cnf.j2
+    dest: /tmp/kube-api-client_openssl.cnf
+    mode: '0644'
+
+- name: Generate kube-api-client private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-api-client.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-api-client.key"
+
+- name: Generate kube-api-client CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-api-client.key
+    -out /tmp/kube-api-client.csr
+    -config /tmp/kube-api-client_openssl.cnf
+  args:
+    creates: /tmp/kube-api-client.csr
+
+- name: Generate kube-api-client certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-api-client.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-api-client.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/kube-api-client.crt"
+
+
+#-----kube-controller-manager----------------------------------
+- name: Copy OpenSSL config for kube-controller-manager cert
+  ansible.builtin.template:
+    src: kube-controller-manager_openssl.cnf.j2
+    dest: /tmp/kube-controller-manager_openssl.cnf
+    mode: '0644'
+
+- name: Generate kube-controller-manager private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-controller-manager.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-controller-manager.key"
+
+- name: Generate kube-controller-manager CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-controller-manager.key
+    -out /tmp/kube-controller-manager.csr
+    -config /tmp/kube-controller-manager_openssl.cnf
+  args:
+    creates: /tmp/kube-controller-manager.csr
+
+- name: Generate kube-controller-manager certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-controller-manager.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-controller-manager.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/kube-controller-manager.crt"
+
+#-----kube-scheduler----------------------------------
+- name: Copy OpenSSL config for kube-scheduler cert
+  ansible.builtin.template:
+    src: kube-scheduler_openssl.cnf.j2
+    dest: /tmp/kube-scheduler_openssl.cnf
+    mode: '0644'
+
+- name: Generate kube-scheduler private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-scheduler.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-scheduler.key"
+
+- name: Generate kube-scheduler CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-scheduler.key
+    -out /tmp/kube-scheduler.csr
+    -config /tmp/kube-scheduler_openssl.cnf
+  args:
+    creates: /tmp/kube-scheduler.csr
+
+- name: Generate kube-scheduler certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-scheduler.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-scheduler.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/kube-scheduler.crt"
+
+#-----------kube-proxy-controlplane-----------
+
+- name: Copy OpenSSL config for kube-proxy cert
+  ansible.builtin.template:
+    src: kube-proxy_openssl.cnf.j2
+    dest: /tmp/kube-proxy_openssl.cnf
+    mode: '0644'
+
+- name: Generate kube-proxy private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-proxy.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-proxy.key"
+
+- name: Generate kube-proxy CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-proxy.key
+    -out /tmp/kube-proxy.csr
+    -config /tmp/kube-proxy_openssl.cnf
+  args:
+    creates: /tmp/kube-proxy.csr
+
+- name: Generate kube-proxy certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-proxy.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-proxy.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/kube-proxy.crt"
+
+#-----kubelet-controlplane----------------------------------
+- name: Copy OpenSSL config for kubelet master cert
+  ansible.builtin.template:
+    src: kubelet_master_openssl.cnf.j2
+    dest: /tmp/kubelet_master_openssl.cnf
+    mode: '0644'
+
+- name: Generate kubelet master private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/{{ hostname }}.key 4096
+  args:
+    creates: "{{ cert_dir }}/{{ hostname }}.key"
+
+- name: Generate kubelet master CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/{{ hostname }}.key
+    -out /tmp/kubelet_master.csr
+    -config /tmp/kubelet_master_openssl.cnf
+  args:
+    creates: /tmp/kubelet_master.csr
+
+- name: Generate kubelet master certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kubelet_master.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/{{ hostname }}.crt
+    -days 3650
+    -sha256
+    -extensions v3_req
+    -extfile /tmp/kubelet_master_openssl.cnf
+  args:
+    creates: "{{ cert_dir }}/{{ hostname }}.crt"
+
+#-----kube-proxy-worker----------------------------------
+
+- name: Copy OpenSSL config for kube-proxy-worker cert
+  ansible.builtin.template:
+    src: kube-proxy_worker_openssl.cnf.j2
+    dest: /tmp/kube-proxy_worker_openssl.cnf
+    mode: '0644'
+
+- name: Generate kube-proxy-worker private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/kube-proxy-worker.key 4096
+  args:
+    creates: "{{ cert_dir }}/kube-proxy-worker.key"
+
+- name: Generate kube-proxy-worker CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/kube-proxy-worker.key
+    -out /tmp/kube-proxy-worker.csr
+    -config /tmp/kube-proxy_worker_openssl.cnf
+  args:
+    creates: /tmp/kube-proxy-worker.csr
+
+- name: Generate kube-proxy-worker certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/kube-proxy-worker.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/kube-proxy-worker.crt
+    -days 3650
+    -sha256
+  args:
+    creates: "{{ cert_dir }}/kube-proxy-worker.crt"
+
+- name: Fetch kube-proxy worker certificate
+  fetch:
+    src: "{{ cert_dir }}/kube-proxy-worker.crt"
+    dest: "{{ playbook_dir }}/k8sworker_certs/kube-proxy-worker.crt"
+    flat: yes
+
+#-----kubelet-worker---------------------------------- 
+
+- name: Copy OpenSSL config for kubelet-worker cert
+  ansible.builtin.template:
+    src: kubelet_worker_openssl.cnf.j2
+    dest: /tmp/kubelet_worker_openssl.cnf
+    mode: '0644'
+
+- name: Generate kubelet-worker private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/{{ worker_hostname }}.key 4096
+  args:
+    creates: "{{ cert_dir }}/{{ worker_hostname }}.key"
+
+- name: Generate kubelet-worker CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ cert_dir }}/{{ worker_hostname }}.key
+    -out /tmp/{{ worker_hostname }}.csr
+    -config /tmp/kubelet_worker_openssl.cnf
+  args:
+    creates: "/tmp/{{ worker_hostname }}.csr"
+
+- name: Generate kubelet-worker certificate signed by CA
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /tmp/{{ worker_hostname }}.csr
+    -CA {{ ca_cert }}
+    -CAkey {{ ca_key }}
+    -CAcreateserial
+    -out {{ cert_dir }}/{{ worker_hostname }}.crt
+    -days 3650
+    -sha256
+    -extensions req_ext
+    -extfile /tmp/kubelet_worker_openssl.cnf
+  args:
+    creates: "{{ cert_dir }}/{{ worker_hostname }}.crt"
+
+- name: Fetch worker node certificate
+  fetch:
+    src: "{{ cert_dir }}/{{ worker_hostname }}.crt"
+    dest: "{{ playbook_dir }}/k8sworker_certs/{{ worker_hostname }}.crt"
+    flat: yes
+#-------------service-account-keys-----------------------
+- name: Generate service-account private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ cert_dir }}/service-account.key 2048
+  args:
+    creates: "{{ cert_dir }}/service-account.key"
+
+- name: Generate service-account public key from private key
+  ansible.builtin.command:
+    cmd: openssl rsa -in {{ cert_dir }}/service-account.key -pubout -out {{ cert_dir }}/service-account.pub
+  args:
+    creates: "{{ cert_dir }}/service-account.pub"
+
+
+#---------------permission block------------------
+- name: Set permissions on all files in /var/lib/kubernetes/pki
+  ansible.builtin.find:
+    paths: "{{ cert_dir }}"
+    recurse: yes
+  register: kubernetes_pki_files
+
+- name: Ensure correct permissions for /var/lib/kubernetes/pki files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ '0600' if item.path.endswith('.key') else '0644' }}"
+  loop: "{{ kubernetes_pki_files.files }}"
+
+- name: Set permissions on all files in /etc/etcd
+  ansible.builtin.find:
+    paths: /etc/etcd
+    recurse: yes
+  register: etcd_cert_files
+
+- name: Ensure correct permissions for /etc/etcd files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ '0600' if item.path.endswith('.key') else '0644' }}"
+  loop: "{{ etcd_cert_files.files }}"
+
+#----------cleanup block-----------------------------
+
+- name: Cleanup all temporary CSRs and OpenSSL config files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/ca_openssl.cnf
+    - /tmp/admin.csr
+    - /tmp/admin_openssl.cnf
+    - /tmp/kube-apiserver.csr
+    - /tmp/kube-apiserver_openssl.cnf
+    - /tmp/kube-api-etcd-client.csr
+    - /tmp/kube-api-etcd-client_openssl.cnf
+    - /tmp/kube-api-client.csr
+    - /tmp/kube-api-client_openssl.cnf
+    - /tmp/kube-controller-manager.csr
+    - /tmp/kube-controller-manager_openssl.cnf
+    - /tmp/kube-scheduler.csr
+    - /tmp/kube-scheduler_openssl.cnf
+    - /tmp/etcd-server-openssl.cnf  
+
+
+
+- name: List all files in /var/lib/kubernetes/pki/
+  ansible.builtin.find:
+    paths: /var/lib/kubernetes/pki/
+    file_type: file
+  register: kubernetes_pki_files
+
+- name: List all files in /etc/etcd
+  ansible.builtin.find:
+    paths: /etc/etcd
+    file_type: file
+  register: etcd_files
+
+- name: Display files in /var/lib/kubernetes/pki/
+  debug:
+    msg: "{{ kubernetes_pki_files.files | map(attribute='path') | list }}"
+
+- name: Display files in /etc/etcd
+  debug:
+    msg: "{{ etcd_files.files | map(attribute='path') | list }}"
+
+- name: Ensure renew_scripts directory exists under PKI
+  ansible.builtin.file:
+    path: /var/lib/kubernetes/pki/renew_scripts
+    state: directory
+    mode: '0750'
+    owner: root
+    group: root
+
+- name: Copy certificate management scripts to renew_scripts folder
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/var/lib/kubernetes/pki/renew_scripts/{{ item }}"
+    mode: '0640'
+    owner: root
+    group: root
+  with_items:
+    - alert_cert_exp.sh
+    - renew_kube_api
+    - renew_admin_crt.sh
+    - renew_components_certs.sh
+    - renew_etcd.sh
+    - worker_certs.sh
+
+- name: Setup weekly cron job to run alert_cert_exp.sh every Monday at 10 AM
+  ansible.builtin.cron:
+    name: "Run alert_cert_exp.sh weekly"
+    user: root
+    minute: 0
+    hour: 10
+    weekday: 1   # Monday (0=Sunday, 1=Monday, ...)
+    job: "/var/lib/kubernetes/pki/renew_scripts/alert_cert_exp.sh >> /var/log/alert_cert_exp.log 2>&1"
+
+- name: Add logrotate config for alert_cert_exp.log
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/alert_cert_exp
+    content: |
+      /var/log/alert_cert_exp.log {
+          monthly
+          rotate 1
+          missingok
+          notifempty
+          compress
+          delaycompress
+          create 0640 root root
+      }
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Copy kube-proxy worker certificates
+  ansible.builtin.fetch:
+    src: "/var/lib/kubernetes/pki/{{ item }}"
+    dest: "/home/eldi.kacori/Junior_DevOps_Showcase/ansible/k8s_worker/roles/kube_proxy/files/"
+    flat: yes
+  loop:
+    - kube-proxy-worker.key
+    - kube-proxy-worker.crt
+
+- name: Copy Ca certificates
+  ansible.builtin.fetch:
+    src: "/var/lib/kubernetes/pki/{{ item }}"
+    dest: "/home/eldi.kacori/Junior_DevOps_Showcase/ansible/k8s_worker/roles/ca_cert/files/"
+    flat: yes
+  loop:
+    - ca.crt
+    - ca.key

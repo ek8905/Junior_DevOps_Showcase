@@ -1,0 +1,14 @@
+- name: Download Kubernetes binaries
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/{{ KUBE_VERSION }}/bin/linux/{{ ARCH }}/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    checksum: "sha256:https://dl.k8s.io/{{ KUBE_VERSION }}/bin/linux/{{ ARCH }}/{{ item }}.sha256"
+    validate_certs: yes
+  loop:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+    - kubectl
+    - kubelet
+    - kube-proxy

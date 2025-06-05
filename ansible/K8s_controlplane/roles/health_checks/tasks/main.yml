@@ -1,0 +1,29 @@
+---
+- name: Check Kubernetes control plane component statuses
+  ansible.builtin.command: >
+    kubectl get componentstatuses --kubeconfig "{{ kubeconf_dir }}/admin.kubeconfig"
+  register: kube_comp_status
+  retries: 10
+  delay: 6
+  until: kube_comp_status.rc == 0
+  failed_when: false
+  changed_when: false
+
+- name: Fail if Kubernetes components are not healthy after retries
+  ansible.builtin.fail:
+    msg: |
+      Kubernetes control plane components are not healthy or accessible after
+      multiple retries. Command output:
+      {{ kube_comp_status.stdout }}
+  when: kube_comp_status.rc != 0
+
+- name: Show Kubernetes components status output
+  ansible.builtin.debug:
+    var: kube_comp_status.stdout_lines
+
+- name: Validate all components show Healthy status
+  ansible.builtin.assert:
+    that:
+      - "'Healthy' in kube_comp_status.stdout"
+    fail_msg: "One or more Kubernetes components are not healthy. Details:\n{{ kube_comp_status.stdout }}"
+    success_msg: "All Kubernetes control plane components are healthy."

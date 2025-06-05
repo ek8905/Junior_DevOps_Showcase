@@ -1,0 +1,53 @@
+- name: Install required Kubernetes packages
+  ansible.builtin.dnf:
+    name:
+      - containerd
+      - kubernetes-cni
+      - ipvsadm
+      - ipset
+    state: present
+    update_cache: yes
+
+- name: Deploy containerd config.toml
+  ansible.builtin.template:
+    src: containerd_config_toml.j2
+    dest: /etc/containerd/config.toml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable and start containerd service
+  ansible.builtin.systemd:
+    name: containerd
+    enabled: yes
+    state: started
+
+- name: Verify containerd is active
+  ansible.builtin.systemd:
+    name: containerd
+  register: containerd_status
+
+- name: Fail if containerd is not running
+  ansible.builtin.fail:
+    msg: "Containerd is not running!"
+  when: not containerd_status.status.ActiveState == 'active'
+
+- name: Ensure bash-completion is installed
+  package:
+    name: bash-completion
+    state: present
+
+- name: Enable kubectl bash completion in .bashrc
+  lineinfile:
+    path: ~/.bashrc
+    line: 'source <(kubectl completion bash)'
+    create: yes
+    insertafter: EOF
+  become: false
+
+- name: Source .bashrc so tab completion is immediately available (only applies to interactive shell)
+  shell: source ~/.bashrc
+  args:
+    executable: /bin/bash
+  when: ansible_env.SHELL == "/bin/bash"
+  ignore_errors: true

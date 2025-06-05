@@ -1,0 +1,13 @@
+- name: repos debug
+  hosts: k8smaster
+  become: true
+  tasks:
+   - name: List all repo files (for debug)
+     find:
+       paths: /etc/yum.repos.d/
+       patterns: '*.repo'
+     register: repo_files_debug
+
+   - name: Debug existing repo files
+     debug:
+       var: repo_files_debug.files

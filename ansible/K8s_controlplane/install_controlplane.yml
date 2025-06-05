@@ -1,0 +1,21 @@
+- name: "Install Kubernetes components in controlplane node"
+  hosts: k8smaster
+  become: yes
+  roles:
+  #  - centos_repo
+  #  - prerequisites  
+  #  - certificates_for_k8s 
+  #  - container_runtime
+  #  - kub_firewall
+  #  - kubernetes_binaries
+  #  - kubeconfigs
+  #  - etcd
+  #  - control_plane_services
+  #  - kubelet
+  #  - rbac_bootstrap
+  #  - networking
+  #  - health_checks
+    - argoCD
+ 
+  
+  

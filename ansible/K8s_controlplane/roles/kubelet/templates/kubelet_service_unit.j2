@@ -1,0 +1,19 @@
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/kubelet \
+  --config=/var/lib/kubelet/kubelet_config.yaml \
+  --tls-cert-file="{{ cert_dir }}/{{ hostname }}.crt" \
+  --tls-private-key-file="{{ cert_dir }}/{{ hostname }}.key" \
+  --kubeconfig=/var/lib/kubelet/kubeconfig \
+  --node-ip="{{ master_ip }}" \
+  --v=2
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,43 @@
+- name: Create admin kubeconfig from template
+  ansible.builtin.template:
+    src:  kubeconfig_admin_user.j2
+    dest: /var/lib/kubernetes/admin.kubeconfig
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Create controller-manager kubeconfig from template
+  ansible.builtin.template:
+    src:  kubeconfig_kube_controller_manager.j2
+    dest: /var/lib/kubernetes/kube_controller_manager.kubeconfig
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart kube-controller-manager 
+
+- name: Create scheduler kubeconfig from template
+  ansible.builtin.template:
+    src:  kubeconfig_kube_scheduler.j2
+    dest: /var/lib/kubernetes/kube_scheduler.kubeconfig
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart kube-scheduler
+
+- name: Create kube-proxy kubeconfig from template
+  ansible.builtin.template:
+    src: kubeconfig_kube_proxy.j2
+    dest: /var/lib/kube-proxy/kube_proxy.kubeconfig
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart kube-proxy
+
+- name: Create kubelet kubeconfig from template
+  ansible.builtin.template:
+    src: kubeconfig_kubelet.j2
+    dest: /var/lib/kubelet/kubeconfig
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart kubelet

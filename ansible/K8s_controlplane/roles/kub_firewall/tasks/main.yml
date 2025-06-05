@@ -1,0 +1,57 @@
+- name: Ensure firewalld is installed
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: Ensure firewalld service is enabled and running
+  ansible.builtin.service:
+    name: firewalld
+    state: "{{ firewalld_state }}"
+    enabled: "{{ firewalld_enabled }}"
+
+- name: Add individual static TCP ports to firewalld
+  ansible.builtin.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: yes
+    zone: "{{ firewalld_zone }}"
+  loop: "{{ firewalld_ports_tcp }}"
+
+- name: Add NodePort range (30000-32767) to firewalld
+  ansible.builtin.firewalld:
+    port: 30000-32767/tcp
+    permanent: true
+    state: enabled
+    immediate: yes
+    zone: "{{ firewalld_zone }}"
+
+- name: Add UDP ports to firewalld zone permanently
+  ansible.builtin.firewalld:
+    port: "{{ item }}/udp"
+    permanent: true
+    state: enabled
+    immediate: yes
+    zone: "{{ firewalld_zone }}"
+  loop: "{{ k8s_ports }}"
+  when: firewalld_ports_udp | length > 0
+  notify: Reload firewalld
+
+- name: Enable masquerading 
+  ansible.builtin.firewalld:
+    masquerade: yes
+    permanent: true
+    state: "{{ firewalld_masquerade }}"
+    immediate: yes
+    zone: "{{ firewalld_zone }}"
+  notify: Reload firewalld
+
+- name: Copy SELinux port addition script to remote host
+  ansible.builtin.copy:
+    src: add_selinux_port.sh
+    dest: /usr/local/bin/add_selinux_port.sh
+    mode: '0755'
+
+- name: Run SELinux port addition script
+  ansible.builtin.command: /usr/local/bin/add_selinux_port.sh
+  become: true

@@ -1,0 +1,36 @@
+- name: Create kubelet config yaml file
+  ansible.builtin.template:
+    src: kubelet_config_yaml.j2
+    dest: /var/lib/kubelet/kubelet_config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Stop kubelet service
+    - Start kubelet service
+
+
+- name: Create kubelet systemd service file
+  ansible.builtin.template:
+    src: kubelet_service_unit.j2
+    dest: /etc/systemd/system/kubelet.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Stop kubelet service
+    - Reload systemd daemon
+    - Start kubelet service
+
+
+- name: Enable and start kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: yes
+    state: started
+
+- name: Verify kubelet is running
+  ansible.builtin.shell: systemctl is-active kubelet
+  register: kubelet_status
+  changed_when: false
+  failed_when: kubelet_status.stdout != "active"

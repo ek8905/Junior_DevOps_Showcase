@@ -11,9 +11,18 @@ url_password: !vault |
           6332333034626439320a393966393662353438613735626564643334316531633934333732386634
           30613364613461656466316431346537643165623233333966623135306639396432393238666463
           3433623639333436633931353432666261303264666534386630
+
 jenkins_plugins:
+  - matrix-project
+  - job-restrictions
   - git
   - workflow-aggregator
-  - docker-plugin
+  - docker-workflow
   - credentials
   - configuration-as-code
+  - copyartifact
+  - job-configuration-history
+  - blueocean
+  - build-monitor-plugin
+  - monitoring
+  - slack

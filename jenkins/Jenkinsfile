@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Running a simple build step...'
+                // Just simulate build with a shell command
+                sh 'echo Hello, Jenkins Pipeline!'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests (placeholder)...'
+                // Simulate tests
+                sh 'echo Tests passed!'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}

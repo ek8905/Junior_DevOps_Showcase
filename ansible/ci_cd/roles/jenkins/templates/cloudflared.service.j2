@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloudflare Tunnel
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/cloudflared tunnel --url http://192.168.0.101:8081
+Restart=on-failure
+User=eldi.kacori
+StandardOutput=file:/var/log/cloudflared-jenkins.log
+StandardError=file:/var/log/cloudflared-jenkins-error.log
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

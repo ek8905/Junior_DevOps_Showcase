@@ -1,8 +1,9 @@
 - name: config for Ci CD server
   hosts: cicd
-  become: true
+  become: yes
   roles:
    # - centos_repo
+   # - cicdtools
     - jenkins
-  #  - cicdtools
+    
     

@@ -80,6 +80,12 @@
     - Reload systemd
     - Restart Jenkins
 
+- name: Ensure jenkins user is in docker group
+  user:
+    name: jenkins
+    groups: docker
+    append: yes
+
 - name: Enable and start Jenkins
   become: yes
   ansible.builtin.systemd:
@@ -111,7 +117,7 @@
 
 - name: Download cloudflared RPM
   get_url:
-    url: https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-rpm-amd64.rpm
+    url: "{{ cloudflared_url }}" 
     dest: /tmp/cloudflared.rpm
     mode: '0644'
   become: yes
@@ -139,19 +145,70 @@
     enabled: yes
     state: started
 
-me: Pull SonarQube Docker image
-  community.docker.docker_image:
-    name: sonarqube
-    tag: 9.9-community
-    source: pull
 
-- name: Run SonarQube container
-  community.docker.docker_container:
+- name: Create sonar user
+  ansible.builtin.user:
     name: sonarqube
-    image: sonarqube:9.9-community
+    shell: /bin/bash
+    create_home: yes
+
+- name: Download SonarQube
+  ansible.builtin.get_url:
+    url: https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-25.6.0.109173.zip
+    dest: /opt/sonarqube.zip
+    mode: '0644'
+
+- name: Unzip SonarQube
+  ansible.builtin.unarchive:
+    src: /opt/sonarqube.zip
+    dest: /opt/
+    remote_src: yes
+    creates: /opt/sonarqube-25.6.0.109173
+
+- name: Symlink SonarQube to /opt/sonarqube
+  ansible.builtin.file:
+    src: /opt/sonarqube-25.6.0.109173
+    dest: /opt/sonarqube
+    state: link
+    force: yes
+
+- name: Change ownership to sonarqube user
+  ansible.builtin.file:
+    path: /opt/sonarqube-25.6.0.109173
+    state: directory
+    recurse: yes
+    owner: sonarqube
+    group: sonarqube
+
+- name: Create systemd service for SonarQube
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/sonarqube.service
+    content: |
+      [Unit]
+      Description=SonarQube service
+      After=network.target
+
+      [Service]
+      Type=forking
+
+      ExecStart=/opt/sonarqube/bin/linux-x86-64/sonar.sh start
+      ExecStop=/opt/sonarqube/bin/linux-x86-64/sonar.sh stop
+
+      User=sonarqube
+      Group=sonarqube
+      Restart=always
+      LimitNOFILE=65536
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Enable and start SonarQube
+  ansible.builtin.systemd:
+    name: sonarqube
+    enabled: yes
     state: started
-    restart_policy: unless-stopped
-    ports:
-      - "9000:9000"
-    env:
-      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"

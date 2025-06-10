@@ -14,22 +14,34 @@ pipeline {
                 }
             }
         }
-
-        stage('OWASP Dependency Check') {
-            steps {
-                dependencyCheck additionalArguments: '''
-                    --scan ./jenkins/solar-system-demo
-                    --out ./jenkins/solar-system-demo
-                    --format ALL
-                    --prettyPrint
-                    --failOnCVSS 7.0
-                ''', odcInstallation: 'OWASP-DepCheck-12'
-                dependencyCheckPublisher failedTotalCritical: 1, failedTotalHigh: 2, failedTotalLow: 100, failedTotalMedium: 4, pattern: ''**/dependency-check-report.xml', stopBuild: true
-
-                junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
-
-                publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, icon: '', keepAll: false, reportDir: 'jenkins/solar-system-demo', reportFiles: 'index.html', reportName: 'Solar system dependecy check HTML Report', reportTitles: 'dependency-check-report.html', useWrapperFileDirectly: true])
+        
+        stage('dependency scanning') {
+          parallel {
+            stage ('npm dependcy check') { 
+              steps {           
+                 sh '''
+                     npm audit --audit-level=critical
+                     echo $?
+                 '''
+              }              
             }
+            stage('OWASP Dependency Check') {
+               steps {
+                   dependencyCheck additionalArguments: '''
+                       --scan ./jenkins/solar-system-demo
+                       --out ./jenkins/solar-system-demo
+                       --format ALL
+                       --prettyPrint
+                       --failOnCVSS 7.0
+                   ''', odcInstallation: 'OWASP-DepCheck-12'
+                   dependencyCheckPublisher failedTotalCritical: 1, failedTotalHigh: 90, failedTotalLow: 100, failedTotalMedium: 90, pattern: '**/dependency-check-report.xml', stopBuild: true
+
+                   junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
+
+                   publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, icon: '', keepAll: false, reportDir: 'jenkins/solar-system-demo', reportFiles: 'index.html', reportName: 'Solar system dependecy check HTML Report', reportTitles: 'dependency-check-report.html', useWrapperFileDirectly: true])
+               }
+            }
+          } 
         }
     }
 }

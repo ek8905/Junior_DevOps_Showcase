@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Installing Dependencies') {
             steps {
-                dir('solar-system-demo') {
+                dir('jenkins/solar-system-demo') {
                     sh 'npm install --no-audit'
                 }
             }
@@ -17,8 +17,8 @@ pipeline {
         stage('OWASP Dependency Check') {
             steps {
                 dependencyCheck additionalArguments: '''
-                    --scan ./solar-system-demo
-                    --out ./solar-system-demo
+                    --scan ./jenkins/solar-system-demo
+                    --out ./jenkins/solar-system-demo
                     --format ALL
                     --prettyPrint
                     --failOnCVSS 7.0

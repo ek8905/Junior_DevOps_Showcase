@@ -39,7 +39,7 @@ pipeline {
                        --prettyPrint
                        --failOnCVSS 7.0
                    ''', odcInstallation: 'OWASP-DepCheck-12'
-                   dependencyCheckPublisher failedTotalCritical: 4, failedTotalHigh: 90, failedTotalLow: 100, failedTotalMedium: 90, pattern: '**/dependency-check-report.xml', stopBuild: true
+                   dependencyCheckPublisher failedTotalCritical: 3, failedTotalHigh: 4, failedTotalLow: 10, failedTotalMedium: 6, pattern: '**/dependency-check-report.xml', stopBuild: true
 
                    junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
 

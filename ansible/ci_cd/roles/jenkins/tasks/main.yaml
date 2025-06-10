@@ -38,6 +38,15 @@
     state: enabled
     rich_rule: 'rule family="ipv4" source address="192.168.0.0/24" port protocol="tcp" port="{{ jenkins_port }}" accept'
 
+- name: Allow access to SonarQube custom port in firewalld
+  become: yes
+  ansible.posix.firewalld:
+    zone: public
+    permanent: yes
+    immediate: yes
+    state: enabled
+    rich_rule: 'rule family="ipv4" source address="192.168.0.0/24" port protocol="tcp" port="{{ sq_port }}" accept'
+
 - name: Install semanage dependency
   become: yes
   ansible.builtin.dnf:
@@ -130,4 +139,19 @@
     enabled: yes
     state: started
 
+me: Pull SonarQube Docker image
+  community.docker.docker_image:
+    name: sonarqube
+    tag: 9.9-community
+    source: pull
 
+- name: Run SonarQube container
+  community.docker.docker_container:
+    name: sonarqube
+    image: sonarqube:9.9-community
+    state: started
+    restart_policy: unless-stopped
+    ports:
+      - "9000:9000"
+    env:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"

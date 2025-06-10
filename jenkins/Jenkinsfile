@@ -5,6 +5,9 @@ pipeline {
         nodejs 'nodejs-24.1.0'
         jdk 'jdk-21'
     }
+    environment {
+    SONAR_SCANNER_HOME = tool 'sonarqube7.1';
+    }
 
     stages {
         stage('Installing Dependencies') {
@@ -41,9 +44,6 @@ pipeline {
                    ''', odcInstallation: 'OWASP-DepCheck-12'
                    dependencyCheckPublisher failedTotalCritical: 3, failedTotalHigh: 4, failedTotalLow: 10, failedTotalMedium: 6, pattern: '**/dependency-check-report.xml', stopBuild: true
 
-                   junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
-
-                   publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, icon: '', keepAll: false, reportDir: 'jenkins/solar-system-demo', reportFiles: 'dependency-check-report.html', reportName: 'Solar system dependecy check HTML Report', reportTitles: 'dependency-check-report.html', useWrapperFileDirectly: true])
                }
             }
           } 
@@ -53,10 +53,34 @@ pipeline {
              dir('jenkins/solar-system-demo') {
                sh 'npm test'
              }
-             junit allowEmptyResults: true, stdioRetention: '', testResults: 'jenkins/solar-system-demo/test-result.xml'
           }
         }
+        stage('SAST - SonarQube') {
+           steps {
+              timeout(time: 180, unit: 'SECONDS') {
+                  withSonarQubeEnv(credentialsId: 'sonar-qube-server') {
+                     sh '''
+                        $SONAR_SCANNER_HOME/bin/sonar-scanner \
+                          -Dsonar.projectKey=Junior_devops_showcase \
+                          -Dsonar.sources=jenkins/solar-system-demo \
+                          -Dsonar.javascript.lcov.reportPaths=jenkins/solar-system-demo/coverage/lcov.info
+                     '''
+                  }
+                  waitForQualityGate abortPipeline: true
+              }
+           }
+        } 
 
     }
+    post {
+      always {
+         junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
+         publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, icon: '', keepAll: false, reportDir: 'jenkins/solar-system-demo', reportFiles: 'dependency-check-report.html', reportName: 'Solar system dependecy check HTML Report', reportTitles: 'dependency-check-report.html', useWrapperFileDirectly: true])
+         junit allowEmptyResults: true, stdioRetention: '', testResults: 'jenkins/solar-system-demo/test-result.xml'
+      }
+    }
+
+
+
 }
 

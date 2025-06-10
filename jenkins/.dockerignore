@@ -1,0 +1,17 @@
+# Ignore node_modules anywhere (in solar-system-demo or others)
+**/node_modules
+
+# Ignore npm debug logs
+npm-debug.log
+
+# Ignore Git metadata
+.git
+.gitignore
+
+# Ignore Jenkinsfile since it is not needed inside the image
+Jenkinsfile
+
+# Ignore any other files/folders in root except solar-system-demo
+*
+!solar-system-demo/
+!solar-system-demo/**

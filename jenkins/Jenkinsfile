@@ -58,7 +58,7 @@ pipeline {
         stage('SAST - SonarQube') {
            steps {
               timeout(time: 180, unit: 'SECONDS') {
-                  withSonarQubeEnv(credentialsId: 'sonar-qube-server') {
+                  withSonarQubeEnv('sonar-qube-server') {
                      sh '''
                         $SONAR_SCANNER_HOME/bin/sonar-scanner \
                           -Dsonar.projectKey=Junior_devops_showcase \

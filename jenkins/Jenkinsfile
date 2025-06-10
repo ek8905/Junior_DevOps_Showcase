@@ -10,7 +10,10 @@ pipeline {
         stage('Installing Dependencies') {
             steps {
                 dir('jenkins/solar-system-demo') {
-                    sh 'npm install --no-audit'
+                    sh '''
+                       npm install --no-audit
+                       npm i --package-lock-only
+                    '''
                 }
             }
         }

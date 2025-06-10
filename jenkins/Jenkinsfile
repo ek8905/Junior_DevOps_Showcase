@@ -72,7 +72,7 @@ pipeline {
         }
         stage('Docker Build Image') {
            steps {
-             dir(jenkins/) {
+             dir('jenkins') {
                 sh 'docker build -t eldi.kacori/solar-system:$GIT_COMMIT '
              }
            }

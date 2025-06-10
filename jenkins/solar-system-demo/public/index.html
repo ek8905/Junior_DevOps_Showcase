@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Solar System Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    h1 { color: #003366; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Solar System Planets</h1>
+  <ul id="planets"></ul>
+
+  <script>
+    async function loadPlanets() {
+      const res = await fetch('/api/planets');
+      const planets = await res.json();
+      const list = document.getElementById('planets');
+      planets.forEach(planet => {
+        const li = document.createElement('li');
+        li.textContent = `${planet.name} - Distance from Sun: ${planet.distanceFromSun}`;
+        list.appendChild(li);
+      });
+    }
+    loadPlanets();
+  </script>
+</body>
+</html>

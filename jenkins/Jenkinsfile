@@ -1,37 +1,30 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'nodejs-24.1.0'
+    }
+
     stages {
-        stage('Checkout') {
+        stage('Installing Dependencies') {
             steps {
-                echo 'Checking out source code...'
-                checkout scm
+                dir('solar-system-demo') {
+                    sh 'npm install --no-audit'
+                }
             }
         }
 
-        stage('Build') {
+        stage('OWASP Dependency Check') {
             steps {
-                echo 'Running a simple build step...'
-                // Just simulate build with a shell command
-                sh 'echo Hello, Jenkins Pipeline!'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                echo 'Running tests (placeholder)...'
-                // Simulate tests
-                sh 'echo Tests passed!'
+                dependencyCheck additionalArguments: '''
+                    --scan ./solar-system-demo
+                    --out ./solar-system-demo
+                    --format ALL
+                    --prettyPrint
+                    --failOnCVSS 7.0
+                ''', odcInstallation: 'OWASP-DepCheck-12'
             }
         }
     }
-
-    post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
-    }
+}
 }

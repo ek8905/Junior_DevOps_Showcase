@@ -53,7 +53,7 @@ pipeline {
              dir('jenkins/solar-system-demo') {
                sh 'npm test'
              }
-             junit allowEmptyResults: true, stdioRetention: true, testResults: 'jenkins/solar-system-demo/test-result.xml'
+             junit allowEmptyResults: true, stdioRetention: '', testResults: 'jenkins/solar-system-demo/test-result.xml'
           }
         }
 

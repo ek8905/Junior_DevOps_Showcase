@@ -48,6 +48,15 @@ pipeline {
             }
           } 
         }
+        stage('unit testing') {
+          steps {
+             dir('jenkins/solar-system-demo') {
+               sh 'npm test'
+             }
+             junit allowEmptyResults: true, stdioRetention: true, testResults: 'jenkins/solar-system-demo/test-result.xml'
+          }
+        }
+
     }
 }
 

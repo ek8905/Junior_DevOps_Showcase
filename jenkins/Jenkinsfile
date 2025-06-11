@@ -57,7 +57,7 @@ pipeline {
         }
         stage('SAST - SonarQube') {
            steps {
-              timeout(time: 600, unit: 'SECONDS') {
+              timeout(time: 180, unit: 'SECONDS') {
                   withSonarQubeEnv('sonar-qube-server') {
                      sh '''
                         $SONAR_SCANNER_HOME/bin/sonar-scanner \
@@ -76,14 +76,53 @@ pipeline {
                 sh 'docker build -t eldi.kacori/solar-system:$GIT_COMMIT .'
              }
            }
-        } 
+        }
+        stage('Scan Docker Image TRIVY') {
+           steps {
+             sh '''
+              trivy image eldi.kacori/solar-system:$GIT_COMMIT \
+              --severity LOW,MEDIUM \
+              --exit-code 0 \
+              --quiet \
+              --format json -o trivy-image-MEDIUM-results.json
 
+              trivy image eldi.kacori/solar-system:$GIT_COMMIT \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --quiet \
+              --format json -o trivy-image-CRITICAL-results.json
+             '''
+           }
+        }
+        post {
+           always {
+              sh '''
+                 trivy convert \
+                    --format template --template "@/usr/local/share/trivy/templates/html.tpl" \
+                    --output trivy-image-MEDIUM-results.html trivy-image-MEDIUM-results.json
+
+                 trivy convert \
+                    --format template --template "@/usr/local/share/trivy/templates/html.tpl" \
+                    --output trivy-image-CRITICAL-results.html trivy-image-CRITICAL-results.json
+              '''
+           }
+        }
+        
     }
     post {
       always {
          junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
          publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, icon: '', keepAll: false, reportDir: 'jenkins/solar-system-demo', reportFiles: 'dependency-check-report.html', reportName: 'Solar system dependecy check HTML Report', reportTitles: 'dependency-check-report.html', useWrapperFileDirectly: true])
          junit allowEmptyResults: true, stdioRetention: '', testResults: 'jenkins/solar-system-demo/test-result.xml'
+         
+         publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'jenkins/solar-system-demo',
+             reportFiles: 'trivy-image-CRITICAL-results.html', reportName: 'Trivy Image Critical Vul Report',
+             reportTitles: '', useWrapperFileDirectly: true])
+
+         publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'jenkins/solar-system-demo',
+             reportFiles: 'trivy-image-MEDIUM-results.html', reportName: 'Trivy Image Medium Vul Report',
+             reportTitles: '', useWrapperFileDirectly: true])
+    
       }
     }
 

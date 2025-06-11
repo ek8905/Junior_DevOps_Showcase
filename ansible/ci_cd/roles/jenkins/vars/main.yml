@@ -19,12 +19,16 @@ jenkins_plugins:
   - job-restrictions
   - git
   - workflow-aggregator
-  - docker-workflow
+  - docker-plugin
   - credentials
   - configuration-as-code
   - copyartifact
-  - job-configuration-history
+  - jobConfigHistory
   - blueocean
   - build-monitor-plugin
   - monitoring
   - slack
+  - nodejs
+  - dependency-check-jenkins-plugin
+  - sonar
+  - docker-workflow

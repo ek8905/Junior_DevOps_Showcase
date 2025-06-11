@@ -212,3 +212,27 @@
     name: sonarqube
     enabled: yes
     state: started
+
+- name: Download Trivy RPM package
+  get_url:
+    url: https://get.trivy.dev/trivy?type=tar.gz&version=0.63.0&os=linux&arch=amd64
+    dest: /tmp/trivy.tar.gz
+
+- name: Extract Trivy binary
+  unarchive:
+    src: /tmp/trivy.tar.gz
+    dest: /tmp/
+    remote_src: yes
+    creates: /tmp/trivy
+
+- name: Move trivy binary to /usr/local/bin
+  command: mv /tmp/trivy /usr/local/bin/trivy
+  args:
+    removes: /tmp/trivy
+
+- name: Ensure trivy is executable
+  file:
+    path: /usr/local/bin/trivy
+    mode: '0755'
+    state: file
+

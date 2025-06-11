@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine3.22
 WORKDIR /usr/app
 COPY solar-system-demo/package*.json /usr/app/
 RUN npm install 

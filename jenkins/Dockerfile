@@ -1,8 +1,8 @@
 FROM node:20-alpine3.22 as builder
 WORKDIR /usr/app
-COPY package*.json ./
+COPY solar-system-demo/package*.json /usr/app/
 RUN npm install
-COPY . .
+COPY solar-system-demo/ .
 
 FROM node:20-alpine3.22
 WORKDIR /usr/app

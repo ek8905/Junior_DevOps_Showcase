@@ -236,3 +236,16 @@
     mode: '0755'
     state: file
 
+- name: Ensure Trivy templates directory exists
+  file:
+    path: /usr/local/share/trivy/templates
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Download Trivy HTML template
+  get_url:
+    url: https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+    dest: /usr/local/share/trivy/templates/html.tpl
+    mode: '0644'

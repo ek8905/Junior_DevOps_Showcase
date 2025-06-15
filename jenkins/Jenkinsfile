@@ -73,20 +73,20 @@ pipeline {
         stage('Docker Build Image') {
            steps {
              dir('jenkins') {
-                sh 'docker build -t eldi.kacori/solar-system:$GIT_COMMIT .'
+                sh 'docker build -t ek89/solar-system:$GIT_COMMIT .'
              }
            }
         }
         stage('Scan Docker Image TRIVY') {
            steps {
              sh '''
-              trivy image eldi.kacori/solar-system:$GIT_COMMIT \
+              trivy image ek89/solar-system:$GIT_COMMIT \
               --severity LOW,MEDIUM \
               --exit-code 0 \
               --quiet \
               --format json -o trivy-image-MEDIUM-results.json
 
-              trivy image eldi.kacori/solar-system:$GIT_COMMIT \
+              trivy image ek89/solar-system:$GIT_COMMIT \
               --severity HIGH,CRITICAL \
               --exit-code 1 \
               --quiet \
@@ -107,6 +107,15 @@ pipeline {
               }
            }
         }
+
+        stage('push the image to the docker repository') {
+          steps {
+            withDockerRegistry(credentialsId: 'docker-hub-credentials') {
+               sh "docker push ek89/solar-system:$GIT_COMMIT"
+            }
+          }
+        } 
+         
         
     }
     post {

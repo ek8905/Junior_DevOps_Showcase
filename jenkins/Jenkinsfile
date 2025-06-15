@@ -115,9 +115,29 @@ pipeline {
             }
           }
         } 
-         
-        
-    }
+        stage('Deploy - AWS EC2') {
+          when {
+             branch 'feature/*'
+          }
+          steps {
+              script {
+                  sshagent(['aws-ec2']) {
+                      sh '''
+                          ssh -o StrictHostKeyChecking=no ec2-user@13.50.225.111"
+                          if sudo docker ps -a | grep -q "solar-system"; then
+                              echo "Container found. Stopping..."
+                              sudo docker stop "solar-system" && sudo docker rm "solar-system"
+                              echo "Container stopped and removed."
+                          fi
+
+                          sudo docker run --name solar-system \
+                              -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
+                          "
+                      '''
+                  }
+              }
+          }        
+        }
     post {
       always {
          junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'

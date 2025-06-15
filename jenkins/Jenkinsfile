@@ -138,6 +138,7 @@ pipeline {
               }
           }        
         }
+    }
     post {
       always {
          junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'

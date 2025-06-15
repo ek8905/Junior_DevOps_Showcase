@@ -110,7 +110,7 @@ pipeline {
 
         stage('push the image to the docker repository') {
           steps {
-            withDockerRegistry(credentialsId: 'docker-hub-credentials') {
+            withDockerRegistry(credentialsId: 'docker-hub-credentials, url: ""') {
                sh "docker push ek89/solar-system:$GIT_COMMIT"
             }
           }

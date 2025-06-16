@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+ name: solar-sys-app
+spec:
+  type: NodePort
+  ports:
+    - name: Web Port
+      port: 3000
+      targetport: 3000
+      protocol: TCP
+  selector:
+     app: solar-sys-app
+      

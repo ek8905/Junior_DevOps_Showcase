@@ -1,0 +1,4 @@
+replicaCount: 1
+
+image: 
+   repository: ek89/solar-system:$GIT_COMMIT 

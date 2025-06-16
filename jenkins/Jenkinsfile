@@ -120,10 +120,15 @@ pipeline {
              branch 'feature/*'
           }
           steps {
+            withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
               script {
+                  def publicIp = sh(
+                    script: "aws ec2 describe-instances | jq -r '.Reservations[].Instances[] | select(.Tags[].Value == \"terraform-solsys-web\") | .PublicIpAddress'",
+                    returnStdout: true 
+                  ).trim()
                   sshagent(['aws-ec2']) {
                      sh """ 
-                        ssh -o StrictHostKeyChecking=no ec2-user@13.50.225.111 "
+                        ssh -o StrictHostKeyChecking=no ec2-user@${publicIp}"
                           if ! command -v docker >/dev/null; then
                              echo "Docker not found. Installing..."
                              sudo yum update -y
@@ -144,6 +149,7 @@ pipeline {
                      """       
                   }
               }
+            }
           }        
         }
         stage('Integration Testing - AWS EC2') {

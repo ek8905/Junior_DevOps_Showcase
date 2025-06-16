@@ -71,6 +71,9 @@ pipeline {
            }
         }
         stage('Docker Build Image') {
+           when {
+             branch 'feature/*'
+           }
            steps {
              dir('jenkins') {
                 sh 'docker build -t ek89/solar-system:$GIT_COMMIT .'
@@ -109,6 +112,9 @@ pipeline {
         }
 
         stage('push the image to the docker repository') {
+          when {
+            branch 'feature/*'
+          }
           steps {
             withDockerRegistry(credentialsId: 'docker-hub-credentials', url: 'https://index.docker.io/v1/') {
                sh "docker push ek89/solar-system:$GIT_COMMIT"

@@ -128,7 +128,7 @@ pipeline {
                   ).trim()
                   sshagent(['aws-ec2']) {
                      sh """ 
-                        ssh -o StrictHostKeyChecking=no ec2-user@${publicIp}"
+                        ssh -o StrictHostKeyChecking=no ec2-user@${publicIp} "
                           if ! command -v docker >/dev/null; then
                              echo "Docker not found. Installing..."
                              sudo yum update -y

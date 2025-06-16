@@ -1,16 +1,14 @@
 pipeline {
     agent any
-    environment {
-      AWS_REGION = 'eu-north-1'
-      AWS_CREDENTIALS = credentials('AWS managing Credentials')
-    }
     
     tools {
         nodejs 'nodejs-24.1.0'
         jdk 'jdk-21'
     }
     environment {
-    SONAR_SCANNER_HOME = tool 'sonarqube7.1';
+      SONAR_SCANNER_HOME = tool 'sonarqube7.1';
+      AWS_REGION = 'eu-north-1'
+      AWS_CREDENTIALS = credentials('AWS managing Credentials')
     }
 
     stages {

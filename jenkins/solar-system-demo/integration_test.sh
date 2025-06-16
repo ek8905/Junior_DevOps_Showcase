@@ -4,7 +4,7 @@ URL=$(aws ec2 describe-instances | jq -r '.Reservations[].Instances[] | select(.
 echo "URL data: $URL"
 
 if [[ -n "$URL" ]]; then
- http_code=$(curl -w "%{http_code}" -s  "https://$URL:3000" -o /dev/null)
+ http_code=$(curl -w "%{http_code}" -s  "http://$URL:3000" -o /dev/null)
  if [[ $http_code == '200' ]]; then
      echo "Website is running $http_code"
  else

@@ -122,18 +122,26 @@ pipeline {
           steps {
               script {
                   sshagent(['aws-ec2']) {
-                      sh '''
-                          ssh -o StrictHostKeyChecking=no ec2-user@13.50.225.111 << 'EOF'
+                     sh '''
+                        ssh -o StrictHostKeyChecking=no ec2-user@13.50.225.111 << 'EOF'
+                          if ! command -v docker >/dev/null; then
+                             echo "Docker not found. Installing..."
+                             sudo yum update -y
+                             sudo yum install -y docker
+                             sudo systemctl start docker
+                             sudo usermod -aG docker ec2-user
+                          fi
+
                           if sudo docker ps -a | grep -q "solar-system"; then
-                              echo "Container found. Stopping..."
-                              sudo docker stop "solar-system" && sudo docker rm "solar-system"
-                              echo "Container stopped and removed."
+                             echo "Container found. Stopping..."
+                             sudo docker stop solar-system && sudo docker rm solar-system
+                             echo "Container stopped and removed."
                           fi
 
                           sudo docker run --name solar-system \
-                              -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
-                       EOF   
-                      '''
+                             -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
+                        EOF
+                     '''       
                   }
               }
           }        

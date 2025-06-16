@@ -159,10 +159,12 @@ pipeline {
           }
           steps {
             withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
-              sh '''
-                bash integration_test.sh
-              '''
-            }
+               dir('jenkins/solar-system-demo') {
+                 sh '''
+                   bash integration_test.sh
+                 '''
+               }
+            }  
           }
         }
 

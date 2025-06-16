@@ -143,8 +143,7 @@ pipeline {
                              echo "Container stopped and removed."
                           fi
 
-                          sudo docker run --name solar-system \
-                             -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
+                          sudo docker run --name solar-system -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
                         "
                      """       
                   }

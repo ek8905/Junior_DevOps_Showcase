@@ -146,6 +146,19 @@ pipeline {
               }
           }        
         }
+        stage('Integration Testing - AWS EC2') {
+          when {
+            branch 'feature/*'
+          }
+          steps {
+            withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
+              sh '''
+                bash integration_test.sh
+              '''
+            }
+          }
+        }
+
     }
     post {
       always {

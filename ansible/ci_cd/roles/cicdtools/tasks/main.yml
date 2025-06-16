@@ -87,6 +87,21 @@
     state: link
     force: yes
 
+- name: Download AWS CLI v2 archive
+  get_url:
+    url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    dest: "/tmp/awscliv2.zip"
+    mode: '0644'
+
+- name: Unzip AWS CLI
+  unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp/
+    remote_src: yes
+
+- name: Install AWS CLI
+  command: /tmp/aws/install
+
 - name: Show installed versions
   block:
     - name: Get Git version
@@ -103,7 +118,7 @@
       register: python_version
     - name: Get Helm version
       command: helm version 
-      register: helm_version
+      register: helm_versioni
     - name: Show all versions
       debug:
         msg: |

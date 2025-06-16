@@ -116,6 +116,9 @@ pipeline {
           }
         }
         stage('Deploy-AWS EC2') {
+          when {
+            branch 'feature/*'
+          }
           steps {
             withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
               script {

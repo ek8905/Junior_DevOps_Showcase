@@ -1,6 +1,10 @@
 pipeline {
     agent any
-
+    environment {
+      AWS_REGION = 'eu-north-1'
+      AWS_CREDENTIALS = credentials('AWS managing Credentials')
+    }
+    
     tools {
         nodejs 'nodejs-24.1.0'
         jdk 'jdk-21'
@@ -114,21 +118,32 @@ pipeline {
                sh "docker push ek89/solar-system:$GIT_COMMIT"
             }
           }
+        }
+        stage('Init - Get EC2 IP') {
+          steps {
+            withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_REGION}") {
+              script {
+                env.PUBLIC_IP = sh(
+                  script: """aws ec2 describe-instances \
+                    --filters "Name=tag:Name,Values=terraform-solsys-web" \
+                    --query "Reservations[].Instances[].PublicIpAddress" \
+                    --output text""",
+                  returnStdout: true
+                ).trim()
+                echo "Captured IP: ${env.PUBLIC_IP}"
+              }
+            }
+          }
         } 
         stage('Deploy - AWS EC2') {
           when {
              branch 'feature/*'
           }
           steps {
-            withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
               script {
-                  def publicIp = sh(
-                    script: "aws ec2 describe-instances | jq -r '.Reservations[].Instances[] | select(.Tags[].Value == \"terraform-solsys-web\") | .PublicIpAddress'",
-                    returnStdout: true 
-                  ).trim()
                   sshagent(['aws-ec2']) {
                      sh """ 
-                        ssh -o StrictHostKeyChecking=no ec2-user@${publicIp} << 'EOF'
+                        ssh -o StrictHostKeyChecking=no ec2-user@${publicIp}"
                           if ! command -v docker >/dev/null; then
                              echo "Docker not found. Installing..."
                              sudo yum update -y
@@ -144,11 +159,10 @@ pipeline {
                           fi
 
                           sudo docker run --name solar-system -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
-                        EOF
+                        "
                      """       
                   }
               }
-            }
           }        
         }
         stage('Integration Testing - AWS EC2') {

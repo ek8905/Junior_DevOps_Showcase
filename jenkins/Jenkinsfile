@@ -7,8 +7,6 @@ pipeline {
     }
     environment {
       SONAR_SCANNER_HOME = tool 'sonarqube7.1';
-      AWS_REGION = 'eu-north-1'
-      AWS_CREDENTIALS = credentials('AWS managing Credentials')
     }
 
     stages {
@@ -119,7 +117,7 @@ pipeline {
         }
         stage('Init - Get EC2 IP') {
           steps {
-            withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_REGION}") {
+            withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
               script {
                 env.PUBLIC_IP = sh(
                   script: """aws ec2 describe-instances \

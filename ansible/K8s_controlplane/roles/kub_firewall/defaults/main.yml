@@ -2,16 +2,22 @@
 firewalld_zone: public
 firewalld_state: started
 firewalld_enabled: true
-firewalld_masquerade: disabled
+firewalld_masquerade: enabled
 firewalld_ports_udp: []
 firewalld_ports_tcp:
   - 6443
+  - 53
+  - 4789
+  - 5472
+  - 5473
   - 179
   - 2379
   - 2380
   - 9090
+  - 9091   
   - 3000
   - 10250
   - 10251
   - 10252
-
+pod_cidr: 10.10.0.0/16
+service_cidr: 10.11.0.0/16

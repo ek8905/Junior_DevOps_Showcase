@@ -9,6 +9,7 @@
     state: "{{ firewalld_state }}"
     enabled: "{{ firewalld_enabled }}"
 
+# Add TCP ports from the list (includes 53/tcp)
 - name: Add individual static TCP ports to firewalld
   ansible.builtin.firewalld:
     port: "{{ item }}/tcp"
@@ -18,6 +19,7 @@
     zone: "{{ firewalld_zone }}"
   loop: "{{ firewalld_ports_tcp }}"
 
+# Add NodePort range (30000-32767/tcp)
 - name: Add NodePort range (30000-32767) to firewalld
   ansible.builtin.firewalld:
     port: 30000-32767/tcp
@@ -26,6 +28,7 @@
     immediate: yes
     zone: "{{ firewalld_zone }}"
 
+# Add UDP ports (empty list allowed)
 - name: Add UDP ports to firewalld zone permanently
   ansible.builtin.firewalld:
     port: "{{ item }}/udp"
@@ -33,19 +36,80 @@
     state: enabled
     immediate: yes
     zone: "{{ firewalld_zone }}"
-  loop: "{{ k8s_ports }}"
+  loop: "{{ firewalld_ports_udp }}"
   when: firewalld_ports_udp | length > 0
-  notify: Reload firewalld
 
-- name: Enable masquerading 
+# IPIP protocol allowed by rich rule (drop direct rule, redundant)
+- name: Allow IPIP protocol (protocol number 4) with rich rule
+  ansible.builtin.firewalld:
+    rich_rule: 'rule protocol value="4" accept'
+    zone: "{{ firewalld_zone }}"
+    permanent: true
+    immediate: yes
+    state: enabled
+
+- name: Allow TCP 8081 to 10.11.146.174 via firewalld rich rule
+  ansible.builtin.firewalld:
+    zone: "{{ firewalld_zone }}"
+    rich_rule: 'rule family="ipv4" destination address="10.11.146.174" port protocol="tcp" port="8081" accept'
+    state: enabled
+    permanent: yes
+
+# Allow Pod CIDR and Service CIDR subnets via rich rules
+- name: Allow Pod CIDR subnet in firewalld
+  ansible.builtin.firewalld:
+    zone: "{{ firewalld_zone }}"
+    rich_rule: "rule family=ipv4 source address={{ pod_cidr }} accept"
+    permanent: yes
+    immediate: yes
+    state: enabled
+
+- name: Allow Service CIDR subnet in firewalld
+  ansible.builtin.firewalld:
+    zone: "{{ firewalld_zone }}"
+    rich_rule: "rule family=ipv4 source address={{ service_cidr }} accept"
+    permanent: yes
+    immediate: yes
+    state: enabled
+
+# Enable masquerading
+- name: Enable masquerading
   ansible.builtin.firewalld:
     masquerade: yes
     permanent: true
     state: "{{ firewalld_masquerade }}"
     immediate: yes
     zone: "{{ firewalld_zone }}"
-  notify: Reload firewalld
 
+# Add cni0 and cali+ interfaces to firewalld zone (use firewalld module instead of command)
+- name: Add cni0 interface to firewalld public zone
+  ansible.builtin.firewalld:
+    interface: cni0
+    zone: "{{ firewalld_zone }}"
+    permanent: true
+    state: enabled
+
+- name: Add cali+ interface to firewalld public zone
+  ansible.builtin.firewalld:
+    interface: cali+
+    zone: "{{ firewalld_zone }}"
+    permanent: true
+    state: enabled
+
+# iptables rules for established connections — keep as commands (or refactor to iptables module if preferred)
+- name: Allow established and related incoming packets (iptables)
+  ansible.builtin.command: iptables -I INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+  become: true
+
+- name: Allow established and related forwarded packets (iptables)
+  ansible.builtin.command: iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+  become: true
+
+# Reload firewalld once after all changes (use notify handlers ideally)
+- name: Reload firewalld to apply changes
+  ansible.builtin.command: firewall-cmd --reload
+
+# SELinux port addition script (separate concern, keep as is)
 - name: Copy SELinux port addition script to remote host
   ansible.builtin.copy:
     src: add_selinux_port.sh
@@ -54,4 +118,3 @@
 
 - name: Run SELinux port addition script
   ansible.builtin.command: /usr/local/bin/add_selinux_port.sh
-  become: true

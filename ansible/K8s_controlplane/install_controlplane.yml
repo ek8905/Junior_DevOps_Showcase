@@ -5,17 +5,17 @@
   #  - centos_repo
   #  - prerequisites  
   #  - certificates_for_k8s 
-  #  - container_runtime
+    - container_runtime
   #  - kub_firewall
   #  - kubernetes_binaries
   #  - kubeconfigs
   #  - etcd
   #  - control_plane_services
-  #  - kubelet
+    - kubelet
   #  - rbac_bootstrap
-  #  - networking
+    - networking
   #  - health_checks
-    - argoCD
+  #  - argoCD
  
   
   

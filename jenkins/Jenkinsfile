@@ -129,7 +129,7 @@ pipeline {
         }
         stage('Deploy-AWS EC2') {
           when {
-            branch 'feature/*'
+            branch 'main'
           }
           steps {
             withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
@@ -170,7 +170,7 @@ pipeline {
         }
         stage('Integration Testing - AWS EC2') {
           when {
-            branch 'feature/*'
+            branch 'main'
           }
           steps {
             withAWS(credentials: 'AWS managing Credentials', region: 'eu-north-1') {
@@ -181,6 +181,38 @@ pipeline {
                }
             }  
           }
+        }
+        stage('K8S Update Image Tag') {
+           when {
+              branch 'feature/*'
+           }
+           steps {
+              script {
+                 sh '''
+                    #### Ensure delivery branch is available and checked out ####
+                    git fetch origin delivery/k8s
+                    git checkout delivery/k8s
+
+                    #### Update the image tag in values.yaml ####
+                    sed -i "s#ek89/solar-system:.*#ek89/solar-system:${APP_HASH}#g" argo-cd-helm-k8s/values.yaml
+                    cat argo-cd-helm-k8s/values.yaml
+
+                    #### Git configuration for CI commits ####
+                    git config user.name "Jenkins CI"
+                    git config user.email "ci@example.com"
+
+                    git add argo-cd-helm-k8s/values.yaml
+
+                    #### Commit only if there are actual changes ####
+                    if ! git diff --cached --quiet; then
+                       git commit -m "Updated docker image to ${APP_HASH}"
+                       git push origin delivery/k8s
+                    else
+                       echo "No changes to commit. Skipping push."
+                    fi
+                 '''
+              }
+           }
         }
 
     }

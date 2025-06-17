@@ -187,7 +187,7 @@ pipeline {
               branch 'feature/*'
            }
            steps {
-              sh 'git clone -b main https://github.com/ek8905/Junior_DevOps_Showcase.git
+              sh 'git clone -b main https://github.com/ek8905/Junior_DevOps_Showcase.git'
               dir('Junior_DevOps_Showcase') {'
                 script {
                    sh '''

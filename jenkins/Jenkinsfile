@@ -187,30 +187,33 @@ pipeline {
               branch 'feature/*'
            }
            steps {
-              script {
-                 sh '''
-                    #### Ensure delivery branch is available and checked out ####
-                    git fetch origin delivery/k8s
-                    git checkout delivery/k8s
+              sh 'git clone -b main https://github.com/ek8905/Junior_DevOps_Showcase.git
+              dir('Junior_DevOps_Showcase') {'
+                script {
+                   sh '''
+                      #### Ensure delivery branch is available and checked out ####
+                      git fetch origin delivery/k8s
+                      git checkout delivery/k8s
 
-                    #### Update the image tag in values.yaml ####
-                    sed -i "s#ek89/solar-system:.*#ek89/solar-system:${APP_HASH}#g" argo-cd-helm-k8s/values.yaml
-                    cat argo-cd-helm-k8s/values.yaml
+                      #### Update the image tag in values.yaml ####
+                      sed -i "s#ek89/solar-system:.*#ek89/solar-system:${APP_HASH}#g" argo-cd-helm-k8s/values.yaml
+                      cat argo-cd-helm-k8s/values.yaml
 
-                    #### Git configuration for CI commits ####
-                    git config user.name "Jenkins CI"
-                    git config user.email "ci@example.com"
+                      #### Git configuration for CI commits ####
+                      git config user.name "Jenkins CI"
+                      git config user.email "ci@example.com"
 
-                    git add argo-cd-helm-k8s/values.yaml
+                      git add argo-cd-helm-k8s/values.yaml
 
-                    #### Commit only if there are actual changes ####
-                    if ! git diff --cached --quiet; then
-                       git commit -m "Updated docker image to ${APP_HASH}"
-                       git push origin delivery/k8s
-                    else
-                       echo "No changes to commit. Skipping push."
-                    fi
-                 '''
+                      #### Commit only if there are actual changes ####
+                      if ! git diff --cached --quiet; then
+                         git commit -m "Updated docker image to ${APP_HASH}"
+                         git push origin delivery/k8s
+                      else
+                         echo "No changes to commit. Skipping push."
+                      fi
+                   '''
+                }
               }
            }
         }

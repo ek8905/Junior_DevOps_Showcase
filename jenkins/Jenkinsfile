@@ -187,7 +187,7 @@ pipeline {
               branch 'feature/*'
            }
            steps {
-              sshagent(['github-ssh-key']) {
+              sshagent(['Jenkins-github-ssh-access']) {
                  sh 'git clone -b main git@github.com:ek8905/Junior_DevOps_Showcase.git'
                  dir('Junior_DevOps_Showcase') {
                     script {

@@ -188,7 +188,7 @@ pipeline {
            }
            steps {
               sh 'git clone -b main https://github.com/ek8905/Junior_DevOps_Showcase.git'
-              dir('Junior_DevOps_Showcase') {'
+              dir('Junior_DevOps_Showcase') {
                 script {
                    sh '''
                       #### Ensure delivery branch is available and checked out ####

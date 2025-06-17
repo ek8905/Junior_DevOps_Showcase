@@ -16,6 +16,6 @@ spec:
        - name: solar-sys-app
          image: "{{ .Values.image.repository }}"
          ports:
-            - port: 3000
-              protocol: TCP
+            - containerPort: 3000
+          
     

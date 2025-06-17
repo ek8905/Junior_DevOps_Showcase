@@ -4,9 +4,8 @@
   roles:
 #    - centos_repo
  #   - ca_cert
-  #  - prerequisites
+    - prerequisites
    # - container_runtime
-    - kub_firewall
  #   - kube_proxy
  #   - kubelet
     

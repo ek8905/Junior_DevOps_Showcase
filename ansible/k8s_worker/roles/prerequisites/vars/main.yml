@@ -1,3 +1,4 @@
 KUBE_VERSION: "v1.33.1"
 ARCH: "amd64"
 repo_ver: "v1.33"
+cert_dir: "/var/lib/kubernetes/pki"

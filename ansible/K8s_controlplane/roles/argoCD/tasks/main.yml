@@ -14,6 +14,8 @@
     kubeconfig: "{{ kubeconfig_path }}"
   delegate_to: localhost
 
+
+
 - name: Patch Argo CD server service to NodePort 
   kubernetes.core.k8s:
     state: present

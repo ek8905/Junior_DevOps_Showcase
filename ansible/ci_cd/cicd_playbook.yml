@@ -3,7 +3,7 @@
   become: yes
   roles:
    # - centos_repo
-    - cicdtools
-   # - jenkins
+   # - cicdtools
+    - jenkins
     
     

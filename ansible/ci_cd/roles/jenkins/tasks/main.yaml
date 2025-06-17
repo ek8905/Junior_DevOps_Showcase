@@ -82,7 +82,7 @@
 
 - name: Ensure jenkins user is in docker group
   user:
-    name: jenkins
+    name: "{{ jenkins_user }}"
     groups: docker
     append: yes
 
@@ -249,3 +249,28 @@
     url: https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
     dest: /usr/local/share/trivy/templates/html.tpl
     mode: '0644'
+
+- name: Ensure .ssh directory exists for Jenkins user
+  file:
+        path: "/home/{{ jenkins_user }}/.ssh"
+        state: directory
+        owner: "{{ jenkins_user }}"
+        group: "{{ jenkins_user }}"
+        mode: '0700'
+
+- name: Generate SSH key pair for GitHub 
+  become_user: "{{ jenkins_user }}"
+  openssh_keypair:
+        path: "{{ ssh_key_path }}"
+        type: ed25519
+        force: false
+        comment: "jenkins@ci"
+        mode: '0600'
+  register: ssh_keypair
+
+- name: Add GitHub to known_hosts
+  become_user: "{{ jenkins_user }}"
+  shell: |
+        ssh-keyscan github.com >> /home/{{ jenkins_user }}/.ssh/known_hosts
+  args:
+        creates: "/home/{{ jenkins_user }}/.ssh/known_hosts"

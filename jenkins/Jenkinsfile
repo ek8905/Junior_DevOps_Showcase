@@ -10,6 +10,18 @@ pipeline {
     }
 
     stages {
+        stage('Detect App Change') {
+          steps {
+            script {
+              def hash = sh(
+                script: "git log -n 1 --pretty=format:%h -- jenkins/solar-system-demo",
+                returnStdout: true
+              ).trim()
+              env.APP_HASH = hash
+              echo "App hash is: ${env.APP_HASH}"
+            }
+          }
+        }
         stage('Installing Dependencies') {
             steps {
                 dir('jenkins/solar-system-demo') {
@@ -71,25 +83,22 @@ pipeline {
            }
         }
         stage('Docker Build Image') {
-           when {
-             branch 'feature/*'
-           }
            steps {
              dir('jenkins') {
-                sh 'docker build -t ek89/solar-system:$GIT_COMMIT .'
+                sh 'docker build -t ek89/solar-system:${APP_HASH} .'
              }
            }
         }
         stage('Scan Docker Image TRIVY') {
            steps {
              sh '''
-              trivy image ek89/solar-system:$GIT_COMMIT \
+              trivy image ek89/solar-system:${APP_HASH} \
               --severity LOW,MEDIUM \
               --exit-code 0 \
               --quiet \
               --format json -o trivy-image-MEDIUM-results.json
 
-              trivy image ek89/solar-system:$GIT_COMMIT \
+              trivy image ek89/solar-system:${APP_HASH} \
               --severity HIGH,CRITICAL \
               --exit-code 1 \
               --quiet \
@@ -112,12 +121,9 @@ pipeline {
         }
 
         stage('push the image to the docker repository') {
-          when {
-            branch 'feature/*'
-          }
           steps {
             withDockerRegistry(credentialsId: 'docker-hub-credentials', url: 'https://index.docker.io/v1/') {
-               sh "docker push ek89/solar-system:$GIT_COMMIT"
+               sh "docker push ek89/solar-system:{APP_HASH}"
             }
           }
         }
@@ -154,7 +160,7 @@ pipeline {
                            echo "Container stopped and removed."
                         fi
 
-                        sudo docker run --name solar-system -p 3000:3000 -d ek89/solar-system:$GIT_COMMIT
+                        sudo docker run --name solar-system -p 3000:3000 -d ek89/solar-system:${APP_HASH}
                       "
                    """
                 }       

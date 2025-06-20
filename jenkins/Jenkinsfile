@@ -9,16 +9,9 @@ pipeline {
       SONAR_SCANNER_HOME = tool 'sonarqube7.1';
     }
 
-    properties([
-       parameters([
-           choice(
-               name: 'TARGET_NODE',
-               choices: ['192.168.0.102', '192.168.0.103'],
-               description: 'Choose the node IP where the app is deployed'
-           )
-       ])
-    ])
-
+    parameters {
+        choice(name: 'TARGET_NODE', choices: ['192.168.0.102', '192.168.0.103'], description: 'Choose node IP')
+    }
     stages {
         stage('Detect App Change') {
           steps {

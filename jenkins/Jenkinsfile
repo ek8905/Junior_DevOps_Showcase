@@ -9,6 +9,16 @@ pipeline {
       SONAR_SCANNER_HOME = tool 'sonarqube7.1';
     }
 
+    properties([
+       parameters([
+           choice(
+               name: 'TARGET_NODE',
+               choices: ['192.168.0.102', '192.168.0.103'],
+               description: 'Choose the node IP where the app is deployed'
+           )
+       ])
+    ])
+
     stages {
         stage('Detect App Change') {
           steps {
@@ -253,7 +263,7 @@ pipeline {
                         chmod 777 \$(pwd)
                         docker run --rm -v \$(pwd):/zap/wrk/:rw zaproxy/zap-stable \\
                           zap-full-scan.py \\
-                          -t http://${targetNode}:3000 \\
+                          -t http://${targetNode}:30000 \\
                           -r zap_report.html \\
                           -w zap_report.md \\
                           -J zap_json_report.json \\

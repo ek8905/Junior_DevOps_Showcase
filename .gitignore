@@ -7,4 +7,4 @@ terraform.tfvars
 *.box
 .box/
 .terraform.lock.hcl
-/home/eldi.kacori/Junior_DevOps_Showcase/ansible/K8s_controlplane/k8sworker_certs
+ansible/K8s_controlplane/k8sworker_certs/

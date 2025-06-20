@@ -266,7 +266,21 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to Prod?') {
+            when {
+                branch 'delivery/k8s'
+            }
+            steps {
+                timeout(time: 1, unit: 'DAYS') {
+                    input message: 'Is the app ready to be deployed in production?', ok: 'YES! the app passed all the  testes'
+                }
+            }
+        }
         stage('Create PR via REST API') {
+            when {
+                branch 'delivery/k8s'
+            }
             steps {
                 script {
                     withCredentials([string(credentialsId: 'Github-Token', variable: 'GITHUB_TOKEN')]) {

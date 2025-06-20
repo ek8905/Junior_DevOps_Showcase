@@ -252,6 +252,7 @@ pipeline {
                     sh """
                         chmod 777 \$(pwd)
                         docker run --rm -v \$(pwd):/zap/wrk/:rw zaproxy/zap-stable \\
+                          zap-full-scan.py \\
                           -t http://${targetNode}:3000 \\
                           -r zap_report.html \\
                           -w zap_report.md \\

@@ -218,9 +218,54 @@ pipeline {
               }
            }
         }
+        stage('App Deployed?') {
+            when {
+                branch 'delivery/k8s'
+            }
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    input message: 'Is the app running in stage env?', ok: 'YES! Ready to be tested'
+                }
+            }
+        }
+
+        stage('DAST - OWASP ZAP') {
+            when {
+                branch 'delivery/k8s'
+            }
+            steps {
+                script {
+                    // Define node IPs
+                    def node1 = '192.168.0.102'
+                    def node2 = '192.168.0.103'
+
+                    // Select node IP
+                    def targetNode = params.TARGET_NODE ?: node1
+
+                    // Validate targetNode 
+                    if (!(targetNode == node1 || targetNode == node2)) {
+                        error("Invalid TARGET_NODE parameter: ${targetNode}. Must be ${node1} or ${node2}")
+                    }
+
+                    echo "Running full ZAP scan against http://${targetNode}:3000"
+
+                    sh """
+                        chmod 777 \$(pwd)
+                        docker run --rm -v \$(pwd):/zap/wrk/:rw owasp/zap2docker-stable zap-full-scan.py \\
+                          -t http://${targetNode}:3000 \\
+                          -r zap_report.html \\
+                          -w zap_report.md \\
+                          -J zap_json_report.json \\
+                          -x zap_xml_report.xml \\
+                          -I
+                    """
+                }
+            }
+        }
 
     }
     post {
+
       always {
          junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/dependency-check-report.xml'
          publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, icon: '', keepAll: false, reportDir: 'jenkins/solar-system-demo', reportFiles: 'dependency-check-report.html', reportName: 'Solar system dependecy check HTML Report', reportTitles: 'dependency-check-report.html', useWrapperFileDirectly: true])
@@ -232,6 +277,11 @@ pipeline {
 
          publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'jenkins/solar-system-demo',
              reportFiles: 'trivy-image-MEDIUM-results.html', reportName: 'Trivy Image Medium Vul Report',
+             reportTitles: '', useWrapperFileDirectly: true])
+
+         junit allowEmptyResults: true, keepProperties: true, testResults: 'jenkins/solar-system-demo/zap_report.html'
+         publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'jenkins/solar-system-demo',
+             reportFiles: '.html', reportName: 'Trivy Image Critical Vul Report',
              reportTitles: '', useWrapperFileDirectly: true])
 
       }

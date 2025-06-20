@@ -2,3 +2,6 @@ replicaCount: 1
 
 image: 
    repository: ek89/solar-system:b8127d2
+
+service:
+  nodePort: 30000

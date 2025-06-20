@@ -1,3 +1,5 @@
 replicaCount: 2
 
-nodePort: 30002
+
+service:
+  nodePort: 30002

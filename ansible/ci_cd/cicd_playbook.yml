@@ -2,8 +2,8 @@
   hosts: cicd
   become: yes
   roles:
-   # - centos_repo
-   # - cicdtools
+    - centos_repo
+    - cicdtools
     - jenkins
     
     

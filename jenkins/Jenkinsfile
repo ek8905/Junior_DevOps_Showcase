@@ -250,7 +250,7 @@ pipeline {
                         error("Invalid TARGET_NODE parameter: ${targetNode}. Must be ${node1} or ${node2}")
                     }
 
-                    echo "Running full ZAP scan against http://${targetNode}:3000"
+                    echo "Running full ZAP scan against http://${targetNode}:30000"
 
                     sh """
                         chmod 777 \$(pwd)
@@ -263,6 +263,29 @@ pipeline {
                           -x zap_xml_report.xml \\
                           -I
                     """
+                }
+            }
+        }
+        stage('Create PR via REST API') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'Github-Token', variable: 'GITHUB_TOKEN')]) {
+                        def repo = "ek8905/Junior_DevOps_Showcase"
+                        def prTitle = "Automated PR: delivery/k8s → main"
+                        def prBody = "Auto-generated PR from Jenkins pipeline."
+
+                        sh """
+                            curl -X POST -H "Authorization: token ${GITHUB_TOKEN}" \\
+                                 -H "Accept: application/vnd.github+json" \\
+                                 https://api.github.com/repos/${repo}/pulls \\
+                                 -d '{
+                                      "title": "${prTitle}",
+                                      "body": "${prBody}",
+                                      "head": "delivery/k8s",
+                                      "base": "main"
+                                 }'
+                        """
+                    }
                 }
             }
         }

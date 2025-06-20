@@ -6,7 +6,7 @@ This repository is my personal DevOps  project demonstrating practical skills in
 
 ## Project Summary
 
-I designed and implemented a multi-environment Kubernetes cluster deployment from the ground up, using manual setup.
+I designed and implemented a multi-environment Kubernetes cluster deployment from the ground up using Ansible.
 
 - **Infrastructure Provisioning:**  
   Manual provisioning of virtual machines and networking resources and automatic  provisioning of AWS resources using **Terraform**
@@ -32,7 +32,7 @@ I designed and implemented a multi-environment Kubernetes cluster deployment fro
 
 - Terraform  
 - Ansible  
-- Kubernetes (kubeadm-based multi-node cluster)  
+- Kubernetes   
 - Helm (templated charts with environment-specific values)  
 - ArgoCD (GitOps continuous deployment)  
 - Jenkins (pipeline automation)  

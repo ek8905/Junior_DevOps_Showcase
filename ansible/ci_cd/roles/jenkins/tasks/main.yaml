@@ -38,6 +38,15 @@
     state: enabled
     rich_rule: 'rule family="ipv4" source address="192.168.0.0/24" port protocol="tcp" port="{{ jenkins_port }}" accept'
 
+- name: Allow access to SonarQube custom port in firewalld
+  become: yes
+  ansible.posix.firewalld:
+    zone: public
+    permanent: yes
+    immediate: yes
+    state: enabled
+    rich_rule: 'rule family="ipv4" source address="192.168.0.0/24" port protocol="tcp" port="{{ sq_port }}" accept'
+
 - name: Install semanage dependency
   become: yes
   ansible.builtin.dnf:
@@ -71,6 +80,12 @@
     - Reload systemd
     - Restart Jenkins
 
+- name: Ensure jenkins user is in docker group
+  user:
+    name: "{{ jenkins_user }}"
+    groups: docker
+    append: yes
+
 - name: Enable and start Jenkins
   become: yes
   ansible.builtin.systemd:
@@ -102,7 +117,7 @@
 
 - name: Download cloudflared RPM
   get_url:
-    url: https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-rpm-amd64.rpm
+    url: "{{ cloudflared_url }}" 
     dest: /tmp/cloudflared.rpm
     mode: '0644'
   become: yes
@@ -131,3 +146,131 @@
     state: started
 
 
+- name: Create sonar user
+  ansible.builtin.user:
+    name: sonarqube
+    shell: /bin/bash
+    create_home: yes
+
+- name: Download SonarQube
+  ansible.builtin.get_url:
+    url: https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-25.6.0.109173.zip
+    dest: /opt/sonarqube.zip
+    mode: '0644'
+
+- name: Unzip SonarQube
+  ansible.builtin.unarchive:
+    src: /opt/sonarqube.zip
+    dest: /opt/
+    remote_src: yes
+    creates: /opt/sonarqube-25.6.0.109173
+
+- name: Symlink SonarQube to /opt/sonarqube
+  ansible.builtin.file:
+    src: /opt/sonarqube-25.6.0.109173
+    dest: /opt/sonarqube
+    state: link
+    force: yes
+
+- name: Change ownership to sonarqube user
+  ansible.builtin.file:
+    path: /opt/sonarqube-25.6.0.109173
+    state: directory
+    recurse: yes
+    owner: sonarqube
+    group: sonarqube
+
+- name: Create systemd service for SonarQube
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/sonarqube.service
+    content: |
+      [Unit]
+      Description=SonarQube service
+      After=network.target
+
+      [Service]
+      Type=forking
+
+      ExecStart=/opt/sonarqube/bin/linux-x86-64/sonar.sh start
+      ExecStop=/opt/sonarqube/bin/linux-x86-64/sonar.sh stop
+
+      User=sonarqube
+      Group=sonarqube
+      Restart=always
+      LimitNOFILE=65536
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Enable and start SonarQube
+  ansible.builtin.systemd:
+    name: sonarqube
+    enabled: yes
+    state: started
+
+- name: Download Trivy RPM package
+  get_url:
+    url: https://get.trivy.dev/trivy?type=tar.gz&version=0.63.0&os=linux&arch=amd64
+    dest: /tmp/trivy.tar.gz
+
+- name: Extract Trivy binary
+  unarchive:
+    src: /tmp/trivy.tar.gz
+    dest: /tmp/
+    remote_src: yes
+    creates: /tmp/trivy
+
+- name: Move trivy binary to /usr/local/bin
+  command: mv /tmp/trivy /usr/local/bin/trivy
+  args:
+    removes: /tmp/trivy
+
+- name: Ensure trivy is executable
+  file:
+    path: /usr/local/bin/trivy
+    mode: '0755'
+    state: file
+
+- name: Ensure Trivy templates directory exists
+  file:
+    path: /usr/local/share/trivy/templates
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Download Trivy HTML template
+  get_url:
+    url: https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+    dest: /usr/local/share/trivy/templates/html.tpl
+    mode: '0644'
+
+- name: Ensure .ssh directory exists for Jenkins user
+  file:
+    path: "/var/lib/jenkins/.ssh"
+    state: directory
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_user }}"
+    mode: '0700'
+
+- name: Generate SSH key pair for GitHub
+  become_user: "{{ jenkins_user }}"
+  openssh_keypair:
+    path: "{{ ssh_key_path }}/id_ed25519"
+    type: ed25519
+    force: false
+    comment: "jenkins@ci"
+    mode: '0600'
+  register: ssh_keypair
+
+- name: Add GitHub to known_hosts
+  become_user: "{{ jenkins_user }}"
+  shell: |
+        ssh-keyscan github.com >> "{{ ssh_key_path }}/known_hosts"
+  args:
+        creates: "{{ ssh_key_path }}/known_hosts"

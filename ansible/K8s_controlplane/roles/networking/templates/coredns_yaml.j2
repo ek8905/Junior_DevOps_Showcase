@@ -66,13 +66,13 @@ data:
             lameduck 5s
         }
         ready
-        kubernetes "{{ cluster_dns }}" in-addr.arpa ip6.arpa {
+        kubernetes {{ kub_cluster }} in-addr.arpa ip6.arpa {
             pods insecure
             fallthrough in-addr.arpa ip6.arpa
             ttl 30
         }
         prometheus :9153
-        forward . /etc/resolv.conf {
+        forward . 8.8.8.8 1.1.1.1 {
             max_concurrent 1000
         }
         cache 30

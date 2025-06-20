@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+   name: solar-sys-app
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+     matchLabels:
+      app: solar-sys-app
+  template:
+    metadata:
+      labels: 
+        app: solar-sys-app
+    spec:
+      containers:
+       - name: solar-sys-app
+         image: "{{ .Values.image.repository }}"
+         ports:
+            - containerPort: 3000
+
+          
+    

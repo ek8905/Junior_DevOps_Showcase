@@ -2,6 +2,10 @@ install_url: "https://pkg.jenkins.io/redhat-stable/jenkins.repo"
 jenkins_GPG_key: "https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key"
 jenkins_port: "8081"
 jenkins_url: "http://192.168.0.101:8081"
+cloudflared_url: "https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-x86_64.rpm"
+sq_port: "9000"
+jenkins_user: "jenkins"
+ssh_key_path: "/var/lib/jenkins/.ssh"
 url_username: "eldi_kacori"
 url_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
@@ -17,12 +21,16 @@ jenkins_plugins:
   - job-restrictions
   - git
   - workflow-aggregator
-  - docker-workflow
+  - docker-plugin
   - credentials
   - configuration-as-code
   - copyartifact
-  - job-configuration-history
+  - jobConfigHistory
   - blueocean
   - build-monitor-plugin
   - monitoring
   - slack
+  - nodejs
+  - dependency-check-jenkins-plugin
+  - sonar
+  - docker-workflow

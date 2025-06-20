@@ -101,3 +101,9 @@
 
 - name: Reload sysctl params
   ansible.builtin.command: sysctl --system 
+
+- name: Stop and disable firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: stopped
+    enabled: no

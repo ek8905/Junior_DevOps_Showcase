@@ -1,0 +1,11 @@
+[Unit]
+Description=Grafana Promtail Log Collector
+After=network.target
+
+[Service]
+User=root
+ExecStart="{{ promtail_bin_dir }}"  -config.file="{{ promtail_config_file }}"
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

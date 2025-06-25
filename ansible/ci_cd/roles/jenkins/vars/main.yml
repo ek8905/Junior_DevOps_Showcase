@@ -34,3 +34,9 @@ jenkins_plugins:
   - dependency-check-jenkins-plugin
   - sonar
   - docker-workflow
+  - aws-credentials
+  - ant
+  - docker-pipeline
+  - owasp-dependency-check
+  - pipeline-aws
+  - ssh-agent

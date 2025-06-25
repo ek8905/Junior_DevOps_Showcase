@@ -1,0 +1,14 @@
+promtail_binary_url: "https://github.com/grafana/loki/releases/download/v3.5.1/promtail-linux-amd64.zip"
+promtail_dir: "/var/lib/promtail"
+promtail_bin_dir: "/usr/local/bin/promtail"
+promtail_config_file: "/etc/promtail-config.yaml"
+
+node_exporter_version: "1.9.1"
+node_exporter_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+node_exporter_bin_dir: "/usr/local/bin/node_exporter"
+
+
+ansible_hostname: k8sworker.project.local
+systd_dir: "/etc/systemd/system"
+loki_server_ip: "192.168.0.101"
+

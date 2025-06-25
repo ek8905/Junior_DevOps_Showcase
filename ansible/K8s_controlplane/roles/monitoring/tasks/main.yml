@@ -1,0 +1,133 @@
+#### Install Node-exporter steps ####
+- name: Create user for Node Exporter
+  user:
+    name: node_exporter
+    shell: /sbin/nologin
+    system: yes
+    create_home: no
+
+- name: Download Node Exporter
+  get_url:
+    url: "{{ node_exporter_url }}"
+    dest: /tmp/node_exporter.tar.gz
+
+- name: Extract Node Exporter
+  unarchive:
+    src: /tmp/node_exporter.tar.gz
+    dest: /opt/
+    remote_src: yes
+
+- name: Copy Node Exporter binary
+  copy:
+    src: "/opt/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+    dest: "{{ node_exporter_bin_dir }}"
+    mode: '0755'
+    remote_src: yes
+
+- name: Create systemd service for Node Exporter
+  template:
+    src: node_exporter_service.j2
+    dest: "{{ systd_dir }}/node_exporter.service"
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Node Exporter
+
+- name: Start and enable node_exporter service
+  ansible.builtin.systemd:
+    name: node_exporter.service
+    enabled: yes
+    state: started
+
+#### Install Promtail steps ####
+
+- name: Create Promtail user
+  user:
+    name: promtail
+    shell: /sbin/nologin
+    system: yes
+    create_home: no
+
+- name: Create Promtail directories
+  file:
+    path: "{{ promtail_dir }}"
+    state: directory
+    mode: '0755'
+    owner: promtail
+    group: promtail
+
+- name: Create positions file 
+  file:
+    path: "{{ promtail_dir }}/positions.yaml"
+    state: touch
+    owner: promtail
+    group: promtail
+    mode: '0644'
+
+- name: Download Promtail binary
+  get_url:
+    url: "{{ promtail_binary_url }}"
+    dest: /tmp/promtail.zip
+
+- name: Unzip Promtail binary
+  unarchive:
+    src: /tmp/promtail.zip
+    dest: "{{ promtail_dir }}"
+    remote_src: yes
+
+- name: Move Promtail binary
+  copy:
+    src: "{{ promtail_dir }}/promtail-linux-amd64" 
+    dest: "{{ promtail_bin_dir }}"
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: yes
+
+- name: Deploy Promtail config file
+  template:
+    src: promtail-config.yaml.j2
+    dest: "{{ promtail_config_file }}"
+    owner: promtail
+    group: promtail
+    mode: '0644'
+  notify:
+  - Reload systemd 
+  - Restart Promtail
+
+- name: Create Promtail systemd service
+  template:
+    src: promtail_service.j2
+    dest: "{{ systd_dir }}/promtail.service"
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Promtail
+
+- name: Start and enable promtail service
+  ansible.builtin.systemd:
+    name: promtail.service
+    enabled: yes
+    state: started
+
+######## deploy kube-metrics in the cluster##########
+- name: Apply kube-state-metrics manifest from source PC
+  command: kubectl apply -f roles/monitoring/files/kube-metric.yaml --kubeconfig=/home/eldi.kacori/.kube/confg/admin.kubeconfig
+  delegate_to: localhost
+
+- name: create prometheus service account to expose kubelet/cAdvisor 
+  command: kubectl apply -f roles/monitoring/files/prometheus-SA.yaml --kubeconfig=/home/eldi.kacori/.kube/confg/admin.kubeconfig
+  delegate_to: localhost
+
+- name: Get bearer token for prometheus-kubelet
+  shell: kubectl create token prometheus-kubelet --duration=8760h -n monitoring --kubeconfig=/home/eldi.kacori/.kube/confg/admin.kubeconfig
+  register: prometheus_bearer_token
+  changed_when: false
+  delegate_to: localhost
+
+- name: Save bearer token to file
+  copy:
+    content: "{{ prometheus_bearer_token.stdout }}"
+    dest: "/home/eldi.kacori/prometheus_kubelet_token"
+    mode: '0600'
+  delegate_to: localhost

@@ -1,0 +1,256 @@
+- name: Add Grafana YUM repo
+  yum_repository:
+    name: grafana
+    description: Grafana OSS
+    baseurl: "{{ base_url_grafana }}" 
+    gpgcheck: yes
+    repo_gpgcheck: yes
+    enabled: yes
+    gpgkey: "{{ gpg_key_grafana }}"
+
+- name: Install Grafana
+  yum:
+    name: grafana
+    state: present
+
+- name: Enable Grafana service
+  systemd:
+    name: grafana-server
+    enabled: yes
+
+- name: Start Grafana service
+  systemd:
+    name: grafana-server
+    state: started
+
+#####    Grafana Loki   #########
+
+- name: Ensure loki user exists
+  user:
+    name: loki
+    shell: /sbin/nologin
+    system: yes
+    create_home: no
+
+- name: Create Loki config directory with correct ownership
+  file:
+    path: /etc/loki
+    state: directory
+    mode: '0755'
+    owner: loki
+    group: loki
+
+- name: Create Loki data directories with correct ownership
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: loki
+    group: loki
+  loop:
+    - /tmp/loki/index
+    - /tmp/loki/boltdb-cache
+    - /tmp/loki/chunks
+    - /tmp/loki_cli
+
+- name: Download Loki zip archive
+  get_url:
+    url: "{{ loki_download_url }}"
+    dest: /tmp/loki.zip
+    mode: '0644'
+
+- name: Download Loki cli zip archive
+  get_url:
+    url: "{{ loki_cli_url }}"
+    dest: /tmp/loki_cli.zip
+    mode: '0644'
+
+- name: Install unzip if not present
+  package:
+    name: unzip
+    state: present
+
+- name: Unzip Loki binary
+  unarchive:
+    src: /tmp/loki.zip
+    dest: /tmp/loki
+    remote_src: yes
+    creates: /tmp/loki/loki
+
+- name: Unzip Loki cli bin
+  unarchive:
+    src: /tmp/loki_cli.zip
+    dest: /tmp/loki_cli
+    remote_src: yes
+    creates: /tmp/loki_cli/logcli-linux-amd64
+
+- name: Move Loki binary to /usr/local/bin
+  copy:
+    src: /tmp/loki/loki-linux-amd64
+    dest: /usr/local/bin/loki
+    mode: '0755'
+    remote_src: yes
+
+- name: Move Loki Cli binary to /usr/local/bin
+  copy:
+    src: /tmp/loki_cli/logcli-linux-amd64
+    dest: /usr/local/bin/logcli
+    mode: '0755'
+    remote_src: yes
+
+
+- name: Deploy Loki config file
+  copy:
+    src: loki-config.yaml
+    dest: /etc/loki/loki-config.yaml
+    mode: '0644'
+    owner: loki
+    group: loki
+  notify:
+    - Reload systemd
+    - Restart Loki service
+
+- name: Create Loki systemd unit file
+  copy:
+    dest: /etc/systemd/system/loki.service
+    content: |
+      [Unit]
+      Description=Loki Log Aggregation
+      After=network.target
+
+      [Service]
+      User=loki
+      Group=loki
+      ExecStart=/usr/local/bin/loki -config.file=/etc/loki/loki-config.yaml
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Loki service
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable Loki service
+  systemd:
+    name: loki
+    enabled: yes
+
+- name: Start Loki service
+  systemd:
+    name: loki
+    state: started
+
+
+###############  Prometheus  ############
+
+- name: Ensure prometheus user exists
+  user:
+    name: prometheus
+    shell: /sbin/nologin
+    system: yes
+    create_home: no
+
+- name: Set ownership on prometheus directories
+  file:
+    path: "{{ item }}"
+    owner: prometheus
+    group: prometheus
+    recurse: yes
+  loop:
+    - "{{ prometheus_data_dir }}"
+    - "{{ prometheus_config_dir }}"
+
+- name: Download Prometheus tarball
+  get_url:
+    url: "{{ prometheus_download_url }}"
+    dest: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+
+- name: Extract Prometheus
+  unarchive:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: /opt/
+    remote_src: yes
+    creates: "/opt/prometheus-{{ prometheus_version }}.linux-amd64"
+
+- name: Create Prometheus config directory
+  file:
+    path: /etc/prometheus
+    state: directory
+    mode: '0755'
+
+- name: Deploy Prometheus config file
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Prometheus service
+
+- name: Deploy Prometheus systemd unit file from template
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Prometheus service
+
+
+- name: Create Prometheus data directory
+  file:
+    path: /var/lib/prometheus
+    state: directory
+    mode: '0755'
+
+- name: Create symlink to Prometheus binaries
+  file:
+    src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+    dest: /usr/local/bin/prometheus
+    state: link
+    force: yes
+
+- name: Reload systemd daemon (Prometheus)
+  systemd:
+    daemon_reload: yes
+
+- name: Enable Prometheus service
+  systemd:
+    name: prometheus
+    enabled: yes
+
+- name: Start Prometheus service
+  systemd:
+    name: prometheus
+    state: started
+
+- name: Allow monitoring stack ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: "{{ monitoring_ports }}"
+  notify:
+    - Reload firewalld
+
+- name: Allow Prometheus port 9090 in SELinux
+  ansible.builtin.command: semanage port -a -t http_port_t -p tcp 9090
+  ignore_errors: yes
+
+- name: Allow Loki port 3100 in SELinux
+  ansible.builtin.command: semanage port -a -t http_port_t -p tcp 3100
+  ignore_errors: yes
+
+- name: Copy token to prometheus server
+  copy:
+    src: /home/eldi.kacori/prometheus_kubelet_token
+    dest: /etc/prometheus/kubelet_token     
+    owner: prometheus
+    group: prometheus
+    mode: '0600'

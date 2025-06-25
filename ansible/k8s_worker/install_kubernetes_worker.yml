@@ -2,10 +2,10 @@
   hosts: k8sworker
   become: yes
   roles:
-    - centos_repo
-    - ca_cert
-    - prerequisites
-    - container_runtime
-    - kube_proxy
-    - kubelet
-    
+ #   - centos_repo
+ #   - ca_cert
+ #   - prerequisites
+ #   - container_runtime
+ #   - kube_proxy
+ #   - kubelet
+     - monitoring

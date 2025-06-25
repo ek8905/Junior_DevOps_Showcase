@@ -1,0 +1,26 @@
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Restart Grafana service
+  systemd:
+    name: grafana-server
+    state: restarted
+    enabled: yes
+
+- name: Restart Loki service
+  systemd:
+    name: loki
+    state: restarted
+    enabled: yes
+
+- name: Restart Prometheus service
+  systemd:
+    name: prometheus
+    state: restarted
+    enabled: yes 
+
+- name: Reload firewalld
+  service:
+    name: firewalld
+    state: reloaded

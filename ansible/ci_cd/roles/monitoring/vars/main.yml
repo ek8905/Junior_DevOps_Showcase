@@ -1,0 +1,23 @@
+base_url_grafana: https://packages.grafana.com/oss/rpm
+gpg_key_grafana: https://packages.grafana.com/gpg.key
+
+loki_download_url: https://github.com/grafana/loki/releases/download/v3.5.1/loki-linux-amd64.zip 
+loki_cli_url: https://github.com/grafana/loki/releases/download/v3.5.1/logcli-linux-amd64.zip 
+
+prometheus_version: "2.51.2"
+prometheus_download_url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+prometheus_archive: "prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+prometheus_user: prometheus
+prometheus_group: prometheus
+prometheus_install_dir: /usr/local/bin
+prometheus_data_dir: /var/lib/prometheus
+prometheus_config_dir: /etc/prometheus
+prometheus_config_file: "{{ prometheus_config_dir }}/prometheus.yml"
+prometheus_service: prometheus
+
+monitoring_ports:
+    - 9090/tcp    # Prometheus
+    - 9093/tcp    # Alertmanager
+    - 3000/tcp    # Grafana
+    - 3100/tcp    # Loki
+    - 9100/tcp    # Node Exporter

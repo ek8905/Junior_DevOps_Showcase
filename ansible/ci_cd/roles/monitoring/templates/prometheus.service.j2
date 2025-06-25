@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus Monitoring
+After=network.target
+
+[Service]
+ExecStart={{ prometheus_install_dir }}/prometheus \
+  --config.file={{ prometheus_config_file }} \
+  --storage.tsdb.path={{ prometheus_data_dir }} \
+  --web.console.templates=/opt/prometheus-{{ prometheus_version }}/consoles \
+  --web.console.libraries=/opt/prometheus-{{ prometheus_version }}/console_libraries
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

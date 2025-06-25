@@ -46,7 +46,7 @@ I designed and implemented a multi-environment Kubernetes cluster deployment fro
 - Created automated Jenkins pipelines to build, test, and deploy applications  
 - Included stages for static code analysis, report publishing, and dynamic application security testing (DAST) with OWASP ZAP
 ![image](https://github.com/user-attachments/assets/914a6278-ddfa-431e-887a-2869cc548d7d)
-![image](https://github.com/user-attachments/assets/a178cbf1-166e-4306-9cd0-8741ba7a932c)
+![image](https://github.com/user-attachments/assets/70e408a5-6dd5-4a55-8b13-7724a472b8b1)
 
 ---
 

@@ -2,20 +2,20 @@
   hosts: k8smaster
   become: yes
   roles:
- #   - centos_repo
- #   - prerequisites  
- #   - certificates_for_k8s 
- #   - container_runtime
- #   - kubernetes_binaries
- #   - kubeconfigs
- #   - etcd
- #   - control_plane_services
- #   - kubelet
- #   - rbac_bootstrap
- #   - networking
- #   - health_checks
- #   - argoCD
-     - monitoring
+    - centos_repo
+    - prerequisites  
+    - certificates_for_k8s 
+    - container_runtime
+    - kubernetes_binaries
+    - kubeconfigs
+    - etcd
+    - control_plane_services
+    - kubelet
+    - rbac_bootstrap
+    - networking
+    - health_checks
+    - argoCD
+    - monitoring
  
   
   

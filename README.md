@@ -29,8 +29,8 @@ I designed and implemented a multi-environment Kubernetes cluster deployment fro
 - Deployed a simple static web application on a Kubernetes cluster with multi-node architecture  
 - Leveraged Helm charts for package management and templated configuration  
 
-![image](https://github.com/user-attachments/assets/db803d81-5023-4918-8c9f-369ee010beb1)
-![image](https://github.com/user-attachments/assets/ee0b3e1e-5583-49dc-8974-65c160993f0c)
+![image](./images/Argo_cd_1.png)
+![image](./images/Argo_cd_2.png)
 
 ---
 
@@ -45,8 +45,8 @@ I designed and implemented a multi-environment Kubernetes cluster deployment fro
 
 - Created automated Jenkins pipelines to build, test, and deploy applications  
 - Included stages for static code analysis, report publishing, and dynamic application security testing (DAST) with OWASP ZAP
-![image](https://github.com/user-attachments/assets/914a6278-ddfa-431e-887a-2869cc548d7d)
-![image](https://github.com/user-attachments/assets/70e408a5-6dd5-4a55-8b13-7724a472b8b1)
+![image](./images/Pipeline_1.png)
+![image](./images/Pipeline_2.png)
 
 ---
 
@@ -65,9 +65,9 @@ I designed and implemented a multi-environment Kubernetes cluster deployment fro
 - Configured Prometheus to scrape Kubernetes and system metrics, providing real-time insights into infrastructure and workloads  
 - Visualized metrics and logs in Grafana through custom dashboards for system, application, and Kubernetes-level monitoring
 
-![image](https://github.com/user-attachments/assets/ff405316-8d50-492a-a9d2-7d3291408985)
-![image](https://github.com/user-attachments/assets/b3a6c139-9851-4bd5-ab2f-cd00dc93e410)
-![image](https://github.com/user-attachments/assets/01b591be-2e29-4c67-986f-41561702480e)
+![image](./images/Grafana_1.png)
+![image](./images/Grafana_2.png)
+![image](./images/Grafana_3.png)
 
 
 ---
